@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Plate ↔ List Converter</title>
+<title>Plate Map ↔ List Converter</title>
 <style>
 :root{--bg:#f0f4f8;--surface:#fff;--border:#d0d7e3;--primary:#1e4d8c;--primary-lt:#e8eef7;--primary-dk:#163a6b;--text:#1a2b3c;--muted:#6b7a8d;--r:8px;--sh:0 2px 8px rgba(0,0,0,.08)}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -11,7 +11,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 header{background:var(--primary);color:#fff;padding:14px 22px 10px;box-shadow:0 2px 10px rgba(0,0,0,.22);display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px}
 header>div:first-child{flex:1}
 header h1{font-size:1.9rem;font-weight:700;margin:0}
-header p{font-size:.8rem;opacity:.7;margin:2px 0 0 0}
+header p{font-size:.8rem;opacity:.7;margin:2px 0 10px 0}
 header .author{font-size:.8rem;opacity:.7;font-weight:400;margin:2px 0 0 0;align-self:flex-end}
 .wrap{max-width:1480px;margin:0 auto;padding:14px 14px 48px}
 /* settings bar */
@@ -99,7 +99,7 @@ header .author{font-size:.8rem;opacity:.7;font-weight:400;margin:2px 0 0 0;align
 <body>
 <header>
   <div>
-    <h1>Plate ↔ List Converter</h1>
+    <h1>Plate Map ↔ List Converter</h1>
     <p>Bidirectional conversion between microplate grid map and well-list format — 96 / 384 / 1536-well</p>
   </div>
   <div class="author">By ILYH</div>
@@ -281,12 +281,12 @@ B21,,
 B22,,
 B23,,
 B24,,
-C1,NTC-1,POC
-C2,NTC-1,POC
-C3,POC,POC
-C4,POC,POC
-C5,Target1,Target1
-C6,Target2,Target2
+C01,NTC-1,POC
+C02,NTC-1,POC
+C03,POC,POC
+C04,POC,POC
+C05,Target1,Target1
+C06,Target2,Target2
 C7,Target3,Target3
 C8,Target4,Target4
 C9,Target5,Target5
@@ -617,7 +617,7 @@ P21,,
 P22,,
 P23,,
 P24,,`;
-const MAP_TEMPLATE_CSV=`siRNA,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24
+const MAP_TEMPLATE_CSV=`siRNA,01,02,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24
 A,,,,,,,,,,,,,,,,,,,,,,,,
 B,,,,,,,,,,,,,,,,,,,,,,,,
 C,NTC-1,NTC-1,POC,POC,Target1,Target2,Target3,Target4,Target5,Target6,Target7,Target8,Target9,Target10,Target11,Target12,Target13,Target14,Target15,Target16,Target17,Target18,Target19,Target20
@@ -653,7 +653,20 @@ N,,,,,Target1,Target2,Target3,Target4,Target5,Target6,Target7,Target8,,,Target11
 O,,,,,Target1,Target2,Target3,Target4,Target5,Target6,Target7,Target8,,,Target11,Target12,Target13,Target14,Target15,Target16,,,Target19,Target20
 P,,,,,,,,,,,,,,,,,,,,,,,,`;
 
-function isWellLike(v){return /^([A-Z]{1,2})(\d+)$/i.test((v||'').trim());}
+function parseWellCode(v){
+  const m=((v||'').trim().toUpperCase()).match(/^([A-Z]{1,2})0*(\d+)$/);
+  if(!m)return null;
+  const col=parseInt(m[2],10);
+  if(!Number.isFinite(col)||col<1)return null;
+  return {row:m[1],col};
+}
+
+function normalizeWellCode(v){
+  const parsed=parseWellCode(v);
+  return parsed?`${parsed.row}${parsed.col}`:'';
+}
+
+function isWellLike(v){return parseWellCode(v)!==null;}
 
 function bestPlateBySize(nRows,nCols){
   const opts=['96','384','1536'];
@@ -693,6 +706,31 @@ function parseListRows(rows){
   const plateIdx=header.findIndex(v=>/^plate$/i.test((v||'').trim()));
   const wellIdx=wellIdxRaw!==-1?wellIdxRaw:0;
   return {header,data,hasHeader,wellIdx,plateIdx};
+}
+
+function getColFormatOpt(){
+  return 'auto';
+}
+
+function formatColNumber(colNum,format){
+  if(!colNum)return '';
+  const num=typeof colNum==='string'?parseInt(colNum):colNum;
+  if(format==='padded'){
+    return String(num).padStart(2,'0');
+  }
+  return String(num);
+}
+
+function detectColFormat(rows){
+  for(const row of rows){
+    for(const cell of row){
+      const m=(cell||'').trim().match(/^([A-Z]{1,2})(\d+)$/);
+      if(m&&m[2].length>1){
+        return 'padded';
+      }
+    }
+  }
+  return 'unpadded';
 }
 
 function getWellColumnName(){
@@ -853,8 +891,8 @@ function autoDetectPlate(rows){
     for(const row of rows){const v=(row[0]||'').trim().toUpperCase();if(/^[A-Z]{1,2}$/.test(v)){const ri=ALL_ROWS.indexOf(v);if(ri>maxRowIdx)maxRowIdx=ri;}for(const cell of row.slice(1)){const n=parseInt(cell);if(!isNaN(n))maxCol=Math.max(maxCol,n);}}
   }else if(fmt==='list'){
     const h=rows[0],wi=h.findIndex(v=>/^well$/i.test((v||'').trim()));
-    if(wi!==-1){for(let i=1;i<rows.length;i++){const m=((rows[i][wi]||'')).trim().toUpperCase().match(/^([A-Z]{1,2})(\d+)$/);if(m){const ri=ALL_ROWS.indexOf(m[1]);if(ri>maxRowIdx)maxRowIdx=ri;maxCol=Math.max(maxCol,parseInt(m[2]));}}}
-    else{for(let i=0;i<rows.length;i++){const m=((rows[i][0]||'')).trim().toUpperCase().match(/^([A-Z]{1,2})(\d+)$/);if(m){const ri=ALL_ROWS.indexOf(m[1]);if(ri>maxRowIdx)maxRowIdx=ri;maxCol=Math.max(maxCol,parseInt(m[2]));}}}
+    if(wi!==-1){for(let i=1;i<rows.length;i++){const parsed=parseWellCode(rows[i][wi]||'');if(parsed){const ri=ALL_ROWS.indexOf(parsed.row);if(ri>maxRowIdx)maxRowIdx=ri;maxCol=Math.max(maxCol,parsed.col);}}}
+    else{for(let i=0;i<rows.length;i++){const parsed=parseWellCode(rows[i][0]||'');if(parsed){const ri=ALL_ROWS.indexOf(parsed.row);if(ri>maxRowIdx)maxRowIdx=ri;maxCol=Math.max(maxCol,parsed.col);}}}
   }
   if(maxRowIdx===-1&&maxCol===0){
     const nRows=rows.length,nCols=Math.max(...rows.map(r=>r.length),1);
@@ -1059,6 +1097,8 @@ function deleteSelectedCols(){
 function layoutToList(rows,pt){
   const{cols}=PLATE[pt];const rlSet=ROW_SETS[pt];
   const emptyOpt=document.getElementById('sEmpty').value;
+  let fmt=getColFormatOpt();
+  if(fmt==='auto'){fmt=detectColFormat(rows);}
   const wn=getWellColumnName();
   const defaultVn=getValueColumnName();
 
@@ -1076,7 +1116,7 @@ function layoutToList(rows,pt){
         const isEmpty=EMPTY_SET.has(raw.toLowerCase());
         if(isEmpty&&emptyOpt==='skip')continue;
         const val=isEmpty?(emptyOpt===''?'':emptyOpt):raw;
-        out.push([`${rl[ri]}${cn}`,val]);
+        out.push([`${rl[ri]}${formatColNumber(cn,fmt)}`,val]);
       }
     }
     return out;
@@ -1121,7 +1161,7 @@ function layoutToList(rows,pt){
           const isEmpty=EMPTY_SET.has(raw.toLowerCase());
           if(isEmpty&&emptyOpt==='skip')continue;
           const val=isEmpty?(emptyOpt===''?'':emptyOpt):raw;
-          const outRow=ensureRow(`${letter}${cn}`);
+          const outRow=ensureRow(`${letter}${formatColNumber(cn,fmt)}`);
           outRow[bi+1]=val;
         }
       }
@@ -1149,7 +1189,7 @@ function layoutToList(rows,pt){
         const isEmpty=EMPTY_SET.has(raw.toLowerCase());
         if(isEmpty&&emptyOpt==='skip')continue;
         const val=isEmpty?(emptyOpt===''?'':emptyOpt):raw;
-        out.push([`${letter}${cn}`,val]);
+        out.push([`${letter}${formatColNumber(cn,fmt)}`,val]);
       }
     }
   }
@@ -1159,15 +1199,16 @@ function layoutToList(rows,pt){
 // ══════════════════════════════════════════
 // LIST → LAYOUT
 // ══════════════════════════════════════════
-function buildGrid(dataRows,wi,vi,rl,nCols,rlSet,title){
+function buildGrid(dataRows,wi,vi,rl,nCols,rlSet,title,fmt){
   const grid={};
-  for(const row of dataRows){const m=((row[wi]||'')).trim().toUpperCase().match(/^([A-Z]{1,2})(\d+)$/);if(!m)continue;const l=m[1],c=parseInt(m[2]);if(!rlSet.has(l)||c<1||c>nCols)continue;grid[`${l}${c}`]=(row[vi]||'').trim();}
-  const out=[[title||'', ...Array.from({length:nCols},(_,i)=>String(i+1))]];
+  for(const row of dataRows){const parsed=parseWellCode(row[wi]||'');if(!parsed)continue;const l=parsed.row,c=parsed.col;if(!rlSet.has(l)||c<1||c>nCols)continue;grid[`${l}${c}`]=(row[vi]||'').trim();}
+  const out=[[title||'', ...Array.from({length:nCols},(_,i)=>formatColNumber(i+1,fmt||'unpadded'))]];
   for(const r of rl){const row=[r];for(let c=1;c<=nCols;c++)row.push(grid[`${r}${c}`]||'');out.push(row);}
   return out;
 }
 function listToLayout(rows,pt,vi){
   const{cols:nCols}=PLATE[pt];const rl=ROW_LABELS[pt],rlSet=ROW_SETS[pt];
+  const fmt='unpadded';
   const parsed=parseListRows(rows);
   const h=parsed.header,data=parsed.data;
   const wellIdx=parsed.wellIdx,pidx=parsed.plateIdx;
@@ -1190,13 +1231,13 @@ function listToLayout(rows,pt,vi){
       const all=[];
       for(const pn of order){
         if(all.length>0)all.push(Array(nCols+1).fill(''));
-        all.push([valueTitle,...Array.from({length:nCols},(_,i)=>String(i+1))]);
-        const g=buildGrid(groups.get(pn),wellIdx,valIdx,rl,nCols,rlSet,valueTitle);
+        all.push([valueTitle,...Array.from({length:nCols},(_,i)=>formatColNumber(i+1,fmt))]);
+        const g=buildGrid(groups.get(pn),wellIdx,valIdx,rl,nCols,rlSet,valueTitle,fmt);
         for(const r of g.slice(1))all.push(r);
       }
       return all;
     }
-    return buildGrid(data,wellIdx,valIdx,rl,nCols,rlSet,valueTitle);
+    return buildGrid(data,wellIdx,valIdx,rl,nCols,rlSet,valueTitle,fmt);
   }
 
   if(valueIdxs.length===1)return buildForValue(valueIdxs[0]);
@@ -1332,7 +1373,7 @@ function buildPlateData(dir,inputRows,outputRows,pt){
     const groups=new Map(),order=[];
     for(let ri=0;ri<data.length;ri++){
       const r=data[ri],pn=pi!==-1?(r[pi]||'').trim()||'Plate':'Plate';
-      const well=((r[wi]||'')).trim().toUpperCase(),val=(r[vi]||'').trim();
+      const well=normalizeWellCode(r[wi]||''),val=(r[vi]||'').trim();
       if(!well)continue;
       if(!groups.has(pn)){groups.set(pn,new Map());order.push(pn);}
       if(val&&!EMPTY_SET.has(val.toLowerCase()))groups.get(pn).set(well,val);
