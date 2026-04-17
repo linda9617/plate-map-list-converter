@@ -1,0 +1,1509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plate ↔ List Converter</title>
+<style>
+:root{--bg:#f0f4f8;--surface:#fff;--border:#d0d7e3;--primary:#1e4d8c;--primary-lt:#e8eef7;--primary-dk:#163a6b;--text:#1a2b3c;--muted:#6b7a8d;--r:8px;--sh:0 2px 8px rgba(0,0,0,.08)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+header{background:var(--primary);color:#fff;padding:14px 22px 10px;box-shadow:0 2px 10px rgba(0,0,0,.22);display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px}
+header>div:first-child{flex:1}
+header h1{font-size:1.9rem;font-weight:700;margin:0}
+header p{font-size:.8rem;opacity:.7;margin:2px 0 0 0}
+header .author{font-size:.8rem;opacity:.7;font-weight:400;margin:2px 0 0 0;align-self:flex-end}
+.wrap{max-width:1480px;margin:0 auto;padding:14px 14px 48px}
+/* settings bar */
+.sbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:8px 14px;margin-bottom:12px;box-shadow:var(--sh)}
+.sbar label{display:flex;align-items:center;gap:6px;font-size:.8rem;font-weight:500;white-space:nowrap}
+.sbar select,.sbar input[type=text]{border:1px solid var(--border);border-radius:4px;padding:3px 7px;font-size:.8rem;color:var(--text);background:var(--surface)}
+/* workspace */
+.ws{display:grid;grid-template-columns:1fr 82px 1fr;gap:10px;align-items:start}
+/* panel */
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh);display:flex;flex-direction:column;min-height:400px;overflow:hidden}
+.ph{display:flex;align-items:center;gap:6px;padding:7px 11px;border-bottom:1px solid var(--border);background:#f7f9fc;border-radius:var(--r) var(--r) 0 0;flex-shrink:0;flex-wrap:wrap}
+.ptitle{font-weight:700;font-size:.84rem;color:var(--primary)}
+.badge{font-size:.67rem;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.badge.layout{background:#dbeafe;color:#1d4ed8}
+.badge.list{background:#d1fae5;color:#065f46}
+.badge.p96{background:#f3e8ff;color:#7e22ce}
+.badge.p384{background:#fce7f3;color:#be185d}
+.badge.p1536{background:#fee2e2;color:#991b1b}
+.badge.unknown{background:#f3f4f6;color:#9ca3af}
+.pact{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap}
+.bi{background:none;border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:.72rem;cursor:pointer;color:var(--text);transition:background .1s;white-space:nowrap}
+.bi:hover{background:var(--primary-lt)}
+.pf{padding:5px 11px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;background:#f7f9fc;flex-shrink:0;min-height:30px;border-radius:0 0 var(--r) var(--r)}
+.upl{display:inline-flex;align-items:center;gap:3px;padding:3px 9px;border:1px solid var(--border);border-radius:4px;font-size:.74rem;cursor:pointer;background:var(--surface);transition:background .1s}
+.upl:hover{background:var(--primary-lt)}
+.inf{display:inline-block;flex:0 0 132px;width:132px;min-height:16px;line-height:16px;font-size:.69rem;color:var(--muted);white-space:nowrap;text-align:left}
+/* table wrapper */
+.tbl-wrap{flex:0 0 auto;height:360px;min-height:220px;max-height:78vh;overflow:auto;position:relative;outline:none;resize:vertical}
+.tbl-wrap.drag-over{box-shadow:inset 0 0 0 2px var(--primary)}
+/* empty hint */
+.empty-hint{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;min-height:320px;color:var(--muted);font-size:.82rem;gap:8px;padding:24px;text-align:center;pointer-events:none}
+.empty-hint .ico{font-size:2rem}
+/* spreadsheet grid */
+.grid-tbl{border-collapse:collapse;font-size:.73rem;font-family:"Consolas","Monaco",monospace}
+.grid-tbl th{position:sticky;top:0;background:#edf1f7;color:#8899aa;font-weight:700;padding:3px 5px;border:1px solid #d0d8e8;white-space:nowrap;z-index:2;text-align:center;min-width:16px;font-family:-apple-system,sans-serif;font-size:.67rem}
+.grid-tbl th.corner{left:0;z-index:3;min-width:28px}
+.grid-tbl .rn{position:sticky;left:0;background:#edf1f7;color:#8899aa;font-weight:700;text-align:right;padding:2px 5px 2px 2px;border:1px solid #d0d8e8;z-index:1;white-space:nowrap;font-family:-apple-system,sans-serif;font-size:.67rem;min-width:26px;user-select:none}
+.grid-tbl td.dc{border:1px solid #e6eaf3;padding:2px 6px;min-width:46px;height:22px;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
+.grid-tbl td.dc[contenteditable=true]{outline:none;cursor:text}
+.grid-tbl td.dc[contenteditable=true]:focus{background:#eff6ff;outline:2px solid var(--primary);outline-offset:-1px;z-index:1;position:relative;overflow:visible}
+.grid-tbl tbody tr:nth-child(even) td.dc{background:#f7f9fc}
+.grid-tbl tbody tr:nth-child(even) td.dc[contenteditable=true]:focus{background:#eff6ff}
+.grid-tbl td.dc.sel{background:#dbeafe!important;box-shadow:inset 0 0 0 1px #3b82f6}
+.grid-tbl .rn.sel,.grid-tbl th.sel{background:#dbeafe;color:#1d4ed8}
+/* output table read-only */
+.grid-tbl.out-tbl td.dc{background:#fafbfc;cursor:default}
+.grid-tbl.out-tbl tbody tr:nth-child(even) td.dc{background:#f3f6fb}
+.grid-tbl.out-tbl tr:hover td.dc{background:#eef3fb}
+/* centre column */
+.cc{display:flex;flex-direction:column;align-items:center;align-self:stretch;gap:10px;padding-top:46px}
+.cvb{background:var(--primary);color:#fff;border:none;border-radius:var(--r);padding:12px 12px;font-size:.84rem;font-weight:700;cursor:pointer;text-align:center;line-height:1.4;min-width:74px;box-shadow:0 2px 7px rgba(30,77,140,.30);transition:background .15s,transform .1s}
+.cvb:hover{background:var(--primary-dk);transform:scale(1.04)}
+.cvb:active{transform:scale(.97)}
+.dbadge{font-size:.67rem;color:var(--muted);text-align:center;max-width:76px}
+.vcw{background:var(--primary-lt);border:1px solid #c8d7f0;border-radius:7px;padding:7px 9px;font-size:.74rem;text-align:center}
+.vcw label{display:flex;flex-direction:column;gap:4px;font-weight:600}
+.vcw select{font-size:.74rem;border:1px solid #c8d7f0;border-radius:4px;padding:2px 4px}
+.tmpl-actions{display:flex;flex-direction:column;gap:8px;width:100%;align-items:center;margin-top:auto;margin-bottom:40px}
+.tmpl-btn{min-width:86px;text-align:center;border-radius:var(--r);padding:7px 10px;background:#dbe7f6;border:1px solid #bfd0ea;color:var(--primary-dk);font-size:.73rem;font-weight:700;box-shadow:0 1px 5px rgba(30,77,140,.16);transition:background .15s,transform .1s,box-shadow .15s}
+.tmpl-btn:hover{background:#cfdef2;box-shadow:0 2px 6px rgba(30,77,140,.22);transform:scale(1.03)}
+.tmpl-btn:active{transform:scale(.98)}
+/* plate map */
+.pmaps{margin-top:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh);padding:12px 14px}
+.pmaps h3{font-size:.84rem;font-weight:700;color:var(--primary);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.tgl{font-weight:400;font-size:.74rem;color:var(--muted);display:flex;align-items:center;gap:3px;cursor:pointer}
+#pmcont{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;align-items:flex-start}
+.pblock{min-width:0}
+.pblk-title{font-size:.73rem;font-weight:700;color:var(--primary);margin-bottom:4px}
+.lgd{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px}
+.lgdi{display:flex;align-items:center;gap:4px;font-size:.7rem}
+.lgdot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+/* toast */
+.toast{position:fixed;bottom:20px;right:20px;padding:8px 16px;border-radius:var(--r);font-size:.8rem;font-weight:500;box-shadow:0 4px 16px rgba(0,0,0,.22);opacity:0;transform:translateY(8px);transition:opacity .2s,transform .2s;pointer-events:none;z-index:9999;color:#fff}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.ok{background:#1a7f4b}
+.toast.err{background:#b01c1c}
+.toast.info{background:var(--primary)}
+.copyright{margin:14px 2px 0;color:var(--muted);font-size:.74rem;text-align:right}
+.copyright a{color:var(--primary);text-decoration:none;font-weight:600}
+.copyright a:hover{text-decoration:underline}
+.hidden{display:none!important}
+@media(max-width:780px){.ws{grid-template-columns:1fr}.cc{flex-direction:row;padding-top:0;justify-content:center}.tbl-wrap{height:300px;min-height:180px;max-height:70vh;resize:vertical}#pmcont{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Plate ↔ List Converter</h1>
+    <p>Bidirectional conversion between microplate grid map and well-list format — 96 / 384 / 1536-well</p>
+  </div>
+  <div class="author">By ILYH</div>
+</header>
+
+<div class="wrap">
+  <!-- Settings -->
+  <div class="sbar">
+    <label>Plate type
+      <select id="sPlate" onchange="onSettingChange()">
+        <option value="auto">Auto-detect</option>
+        <option value="96">96-well (8×12)</option>
+        <option value="384">384-well (16×24)</option>
+        <option value="1536">1536-well (32×48)</option>
+      </select>
+    </label>
+    <label>Direction
+      <select id="sDir" onchange="onSettingChange()">
+        <option value="auto">Auto-detect</option>
+        <option value="L2l">Map → List</option>
+        <option value="l2L">List → Map</option>
+      </select>
+    </label>
+    <label>Separator
+      <select id="sSep">
+        <option value="auto">Auto (Tab/Comma)</option>
+        <option value="&#9;">Tab</option>
+        <option value=",">Comma</option>
+        <option value=";">Semicolon</option>
+      </select>
+    </label>
+    <label>Empty cells
+      <select id="sEmpty">
+        <option value="">Keep blank</option>
+        <option value="skip">Skip (omit from list)</option>
+        <option value="NA">Fill NA</option>
+        <option value="0">Fill 0</option>
+      </select>
+    </label>
+  </div>
+
+  <!-- Workspace -->
+  <div class="ws">
+    <!-- Input panel -->
+    <div class="panel">
+      <div class="ph">
+        <span class="ptitle">Input</span>
+        <span class="badge unknown" id="iBadge">—</span>
+        <span class="badge unknown hidden" id="iPlateBadge"></span>
+        <div class="pact">
+          <label class="upl">📂 Open file
+            <input type="file" id="fInput" accept=".csv,.tsv,.txt" style="display:none">
+          </label>
+          <button class="bi" onclick="addRow()">+ Row</button>
+          <button class="bi" onclick="addCol()">+ Col</button>
+          <button class="bi" onclick="clearInput()">✕ Clear</button>
+        </div>
+      </div>
+      <div class="tbl-wrap" id="iTblWrap" tabindex="0">
+        <div class="empty-hint" id="iHint">
+          <div class="ico">📋</div>
+          <strong>Paste data here (Ctrl+V / ⌘V)</strong>
+          <span style="font-size:.74rem">Map or List format — auto-detected<br>Or drag &amp; drop / open a CSV / TSV file</span>
+        </div>
+      </div>
+      <div class="pf">
+        <span class="inf" id="iInf"></span>
+      </div>
+    </div>
+
+    <!-- Centre -->
+    <div class="cc">
+      <button class="cvb" onclick="convert()">Convert<br>⇄</button>
+      <div class="vcw hidden" id="vcWrap">
+        <label>Value
+          <select id="vcSel"></select>
+        </label>
+      </div>
+      <div class="dbadge" id="dBadge"></div>
+      <div class="tmpl-actions">
+        <button class="bi tmpl-btn" onclick="loadTemplate('list')">List-template</button>
+        <button class="bi tmpl-btn" onclick="loadTemplate('map')">Map-template</button>
+      </div>
+    </div>
+
+    <!-- Output panel -->
+    <div class="panel">
+      <div class="ph">
+        <span class="ptitle">Output</span>
+        <span class="badge unknown" id="oBadge">—</span>
+        <div class="pact">
+          <button class="bi" onclick="useAsInput()">As input</button>
+          <button class="bi" onclick="copyOut()">📋 Copy</button>
+          <button class="bi" onclick="dlOut('csv')">⬇ CSV</button>
+        </div>
+      </div>
+      <div class="tbl-wrap" id="oTblWrap">
+        <div class="empty-hint" id="oHint">
+          <div class="ico">📄</div>
+          Output appears here after clicking Convert ⇄
+        </div>
+      </div>
+      <div class="pf">
+        <span class="inf" id="oInf"></span>
+      </div>
+    </div>
+  </div><!-- /ws -->
+
+  <!-- Plate map -->
+  <div class="pmaps hidden" id="pmSection">
+    <h3>Plate Map
+      <button class="bi" onclick="downloadPlateMapImage()" style="margin-left:auto">Download Map</button>
+    </h3>
+    <div id="pmcont"></div>
+    <div class="lgd" id="lgdCont"></div>
+  </div>
+
+  <div class="copyright">Copyright (c) 2026 v1.0 Lin</div>
+</div><!-- /wrap -->
+
+<div class="toast" id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script>
+// ══════════════════════════════════════════
+// PLATE DEFINITIONS
+// ══════════════════════════════════════════
+const PLATE={'96':{rows:8,cols:12},'384':{rows:16,cols:24},'1536':{rows:32,cols:48}};
+function genRows(n){return Array.from({length:n},(_,i)=>{if(i<26)return String.fromCharCode(65+i);const q=Math.floor((i-26)/26),r=(i-26)%26;return String.fromCharCode(65+q)+String.fromCharCode(65+r);});}
+const ROW_LABELS={},ROW_SETS={};
+for(const k of Object.keys(PLATE)){ROW_LABELS[k]=genRows(PLATE[k].rows);ROW_SETS[k]=new Set(ROW_LABELS[k]);}
+const ALL_ROWS=genRows(32);
+const EMPTY_SET=new Set(['','empty','blank','nan','none','-','n/a','na','#n/a','null','undefined']);
+const LIST_TEMPLATE_CSV=`Well,siRNA,Primer
+A1,,
+A2,,
+A3,,
+A4,,
+A5,,
+A6,,
+A7,,
+A8,,
+A9,,
+A10,,
+A11,,
+A12,,
+A13,,
+A14,,
+A15,,
+A16,,
+A17,,
+A18,,
+A19,,
+A20,,
+A21,,
+A22,,
+A23,,
+A24,,
+B1,,
+B2,,
+B3,,
+B4,,
+B5,,
+B6,,
+B7,,
+B8,,
+B9,,
+B10,,
+B11,,
+B12,,
+B13,,
+B14,,
+B15,,
+B16,,
+B17,,
+B18,,
+B19,,
+B20,,
+B21,,
+B22,,
+B23,,
+B24,,
+C1,NTC-1,POC
+C2,NTC-1,POC
+C3,POC,POC
+C4,POC,POC
+C5,Target1,Target1
+C6,Target2,Target2
+C7,Target3,Target3
+C8,Target4,Target4
+C9,Target5,Target5
+C10,Target6,Target6
+C11,Target7,Target7
+C12,Target8,Target8
+C13,Target9,Target9
+C14,Target10,Target10
+C15,Target11,Target11
+C16,Target12,Target12
+C17,Target13,Target13
+C18,Target14,Target14
+C19,Target15,Target15
+C20,Target16,Target16
+C21,Target17,Target17
+C22,Target18,Target18
+C23,Target19,Target19
+C24,Target20,Target20
+D1,NTC-2,POC
+D2,NTC-2,POC
+D3,POC,POC
+D4,POC,POC
+D5,Target1,Target1
+D6,Target2,Target2
+D7,Target3,Target3
+D8,Target4,Target4
+D9,Target5,Target5
+D10,Target6,Target6
+D11,Target7,Target7
+D12,Target8,Target8
+D13,Target9,Target9
+D14,Target10,Target10
+D15,Target11,Target11
+D16,Target12,Target12
+D17,Target13,Target13
+D18,Target14,Target14
+D19,Target15,Target15
+D20,Target16,Target16
+D21,Target17,Target17
+D22,Target18,Target18
+D23,Target19,Target19
+D24,Target20,Target20
+E1,NTC-3,POC
+E2,NTC-3,POC
+E3,POC,POC
+E4,POC,POC
+E5,Target1,Target1
+E6,Target2,Target2
+E7,Target3,Target3
+E8,Target4,Target4
+E9,Target5,Target5
+E10,Target6,Target6
+E11,Target7,Target7
+E12,Target8,Target8
+E13,Target9,Target9
+E14,Target10,Target10
+E15,Target11,Target11
+E16,Target12,Target12
+E17,Target13,Target13
+E18,Target14,Target14
+E19,Target15,Target15
+E20,Target16,Target16
+E21,Target17,Target17
+E22,Target18,Target18
+E23,Target19,Target19
+E24,Target20,Target20
+F1,NTC-4,POC
+F2,NTC-4,POC
+F3,POC,POC
+F4,POC,POC
+F5,Target1,Target1
+F6,Target2,Target2
+F7,Target3,Target3
+F8,Target4,Target4
+F9,Target5,Target5
+F10,Target6,Target6
+F11,Target7,Target7
+F12,Target8,Target8
+F13,Target9,Target9
+F14,Target10,Target10
+F15,Target11,Target11
+F16,Target12,Target12
+F17,Target13,Target13
+F18,Target14,Target14
+F19,Target15,Target15
+F20,Target16,Target16
+F21,Target17,Target17
+F22,Target18,Target18
+F23,Target19,Target19
+F24,Target20,Target20
+G1,NTC-1,InnerC
+G2,NTC-1,InnerC
+G3,POC,InnerC
+G4,POC,InnerC
+G5,Target1,InnerC
+G6,Target2,InnerC
+G7,Target3,InnerC
+G8,Target4,InnerC
+G9,Target5,InnerC
+G10,Target6,InnerC
+G11,Target7,InnerC
+G12,Target8,InnerC
+G13,Target9,InnerC
+G14,Target10,InnerC
+G15,Target11,InnerC
+G16,Target12,InnerC
+G17,Target13,InnerC
+G18,Target14,InnerC
+G19,Target15,InnerC
+G20,Target16,InnerC
+G21,Target17,InnerC
+G22,Target18,InnerC
+G23,Target19,InnerC
+G24,Target20,InnerC
+H1,NTC-2,InnerC
+H2,NTC-2,InnerC
+H3,POC,InnerC
+H4,POC,InnerC
+H5,Target1,InnerC
+H6,Target2,InnerC
+H7,Target3,InnerC
+H8,Target4,InnerC
+H9,Target5,InnerC
+H10,Target6,InnerC
+H11,Target7,InnerC
+H12,Target8,InnerC
+H13,Target9,InnerC
+H14,Target10,InnerC
+H15,Target11,InnerC
+H16,Target12,InnerC
+H17,Target13,InnerC
+H18,Target14,InnerC
+H19,Target15,InnerC
+H20,Target16,InnerC
+H21,Target17,InnerC
+H22,Target18,InnerC
+H23,Target19,InnerC
+H24,Target20,InnerC
+I1,NTC-3,InnerC
+I2,NTC-3,InnerC
+I3,POC,InnerC
+I4,POC,InnerC
+I5,Target1,InnerC
+I6,Target2,InnerC
+I7,Target3,InnerC
+I8,Target4,InnerC
+I9,Target5,InnerC
+I10,Target6,InnerC
+I11,Target7,InnerC
+I12,Target8,InnerC
+I13,Target9,InnerC
+I14,Target10,InnerC
+I15,Target11,InnerC
+I16,Target12,InnerC
+I17,Target13,InnerC
+I18,Target14,InnerC
+I19,Target15,InnerC
+I20,Target16,InnerC
+I21,Target17,InnerC
+I22,Target18,InnerC
+I23,Target19,InnerC
+I24,Target20,InnerC
+J1,NTC-4,InnerC
+J2,NTC-4,InnerC
+J3,POC,InnerC
+J4,POC,InnerC
+J5,Target1,InnerC
+J6,Target2,InnerC
+J7,Target3,InnerC
+J8,Target4,InnerC
+J9,Target5,InnerC
+J10,Target6,InnerC
+J11,Target7,InnerC
+J12,Target8,InnerC
+J13,Target9,InnerC
+J14,Target10,InnerC
+J15,Target11,InnerC
+J16,Target12,InnerC
+J17,Target13,InnerC
+J18,Target14,InnerC
+J19,Target15,InnerC
+J20,Target16,InnerC
+J21,Target17,InnerC
+J22,Target18,InnerC
+J23,Target19,InnerC
+J24,Target20,InnerC
+K1,,
+K2,,
+K3,,
+K4,,
+K5,,
+K6,,
+K7,,
+K8,,
+K9,,
+K10,,
+K11,,
+K12,,
+K13,,
+K14,,
+K15,,
+K16,,
+K17,,
+K18,,
+K19,,
+K20,,
+K21,,
+K22,,
+K23,,
+K24,,
+L1,,
+L2,,
+L3,,
+L4,,
+L5,NTC-1,Target1
+L6,NTC-1,Target2
+L7,NTC-1,Target3
+L8,NTC-1,Target4
+L9,NTC-1,Target5
+L10,NTC-1,Target6
+L11,NTC-1,Target7
+L12,NTC-1,Target8
+L13,,
+L14,,
+L15,NTC-1,Target11
+L16,NTC-1,Target12
+L17,NTC-1,Target13
+L18,NTC-1,Target14
+L19,NTC-1,Target15
+L20,NTC-1,Target16
+L21,,
+L22,,
+L23,NTC-1,Target19
+L24,NTC-1,Target20
+M1,,
+M2,,
+M3,,
+M4,,
+M5,NTC-2,Target1
+M6,NTC-2,Target2
+M7,NTC-2,Target3
+M8,NTC-2,Target4
+M9,NTC-2,Target5
+M10,NTC-2,Target6
+M11,NTC-2,Target7
+M12,NTC-2,Target8
+M13,,
+M14,,
+M15,NTC-2,Target11
+M16,NTC-2,Target12
+M17,NTC-2,Target13
+M18,NTC-2,Target14
+M19,NTC-2,Target15
+M20,NTC-2,Target16
+M21,,
+M22,,
+M23,NTC-2,Target19
+M24,NTC-2,Target20
+N1,,
+N2,,
+N3,,
+N4,,
+N5,NTC-3,Target1
+N6,NTC-3,Target2
+N7,NTC-3,Target3
+N8,NTC-3,Target4
+N9,NTC-3,Target5
+N10,NTC-3,Target6
+N11,NTC-3,Target7
+N12,NTC-3,Target8
+N13,,
+N14,,
+N15,NTC-3,Target11
+N16,NTC-3,Target12
+N17,NTC-3,Target13
+N18,NTC-3,Target14
+N19,NTC-3,Target15
+N20,NTC-3,Target16
+N21,,
+N22,,
+N23,NTC-3,Target19
+N24,NTC-3,Target20
+O1,,
+O2,,
+O3,,
+O4,,
+O5,NTC-4,Target1
+O6,NTC-4,Target2
+O7,NTC-4,Target3
+O8,NTC-4,Target4
+O9,NTC-4,Target5
+O10,NTC-4,Target6
+O11,NTC-4,Target7
+O12,NTC-4,Target8
+O13,,
+O14,,
+O15,NTC-4,Target11
+O16,NTC-4,Target12
+O17,NTC-4,Target13
+O18,NTC-4,Target14
+O19,NTC-4,Target15
+O20,NTC-4,Target16
+O21,,
+O22,,
+O23,NTC-4,Target19
+O24,NTC-4,Target20
+P1,,
+P2,,
+P3,,
+P4,,
+P5,,
+P6,,
+P7,,
+P8,,
+P9,,
+P10,,
+P11,,
+P12,,
+P13,,
+P14,,
+P15,,
+P16,,
+P17,,
+P18,,
+P19,,
+P20,,
+P21,,
+P22,,
+P23,,
+P24,,`;
+const MAP_TEMPLATE_CSV=`siRNA,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24
+A,,,,,,,,,,,,,,,,,,,,,,,,
+B,,,,,,,,,,,,,,,,,,,,,,,,
+C,NTC-1,NTC-1,POC,POC,Target1,Target2,Target3,Target4,Target5,Target6,Target7,Target8,Target9,Target10,Target11,Target12,Target13,Target14,Target15,Target16,Target17,Target18,Target19,Target20
+D,NTC-2,NTC-2,POC,POC,Target1,Target2,Target3,Target4,Target5,Target6,Target7,Target8,Target9,Target10,Target11,Target12,Target13,Target14,Target15,Target16,Target17,Target18,Target19,Target20
+E,NTC-3,NTC-3,POC,POC,Target1,Target2,Target3,Target4,Target5,Target6,Target7,Target8,Target9,Target10,Target11,Target12,Target13,Target14,Target15,Target16,Target17,Target18,Target19,Target20
+F,NTC-4,NTC-4,POC,POC,Target1,Target2,Target3,Target4,Target5,Target6,Target7,Target8,Target9,Target10,Target11,Target12,Target13,Target14,Target15,Target16,Target17,Target18,Target19,Target20
+G,NTC-1,NTC-1,POC,POC,Target1,Target2,Target3,Target4,Target5,Target6,Target7,Target8,Target9,Target10,Target11,Target12,Target13,Target14,Target15,Target16,Target17,Target18,Target19,Target20
+H,NTC-2,NTC-2,POC,POC,Target1,Target2,Target3,Target4,Target5,Target6,Target7,Target8,Target9,Target10,Target11,Target12,Target13,Target14,Target15,Target16,Target17,Target18,Target19,Target20
+I,NTC-3,NTC-3,POC,POC,Target1,Target2,Target3,Target4,Target5,Target6,Target7,Target8,Target9,Target10,Target11,Target12,Target13,Target14,Target15,Target16,Target17,Target18,Target19,Target20
+J,NTC-4,NTC-4,POC,POC,Target1,Target2,Target3,Target4,Target5,Target6,Target7,Target8,Target9,Target10,Target11,Target12,Target13,Target14,Target15,Target16,Target17,Target18,Target19,Target20
+K,,,,,,,,,,,,,,,,,,,,,,,,
+L,,,,,NTC-1,NTC-1,NTC-1,NTC-1,NTC-1,NTC-1,NTC-1,NTC-1,,,NTC-1,NTC-1,NTC-1,NTC-1,NTC-1,NTC-1,,,NTC-1,NTC-1
+M,,,,,NTC-2,NTC-2,NTC-2,NTC-2,NTC-2,NTC-2,NTC-2,NTC-2,,,NTC-2,NTC-2,NTC-2,NTC-2,NTC-2,NTC-2,,,NTC-2,NTC-2
+N,,,,,NTC-3,NTC-3,NTC-3,NTC-3,NTC-3,NTC-3,NTC-3,NTC-3,,,NTC-3,NTC-3,NTC-3,NTC-3,NTC-3,NTC-3,,,NTC-3,NTC-3
+O,,,,,NTC-4,NTC-4,NTC-4,NTC-4,NTC-4,NTC-4,NTC-4,NTC-4,,,NTC-4,NTC-4,NTC-4,NTC-4,NTC-4,NTC-4,,,NTC-4,NTC-4
+P,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,
+Primer,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24
+A,,,,,,,,,,,,,,,,,,,,,,,,
+B,,,,,,,,,,,,,,,,,,,,,,,,
+C,POC,POC,POC,POC,Target1,Target2,Target3,Target4,Target5,Target6,Target7,Target8,Target9,Target10,Target11,Target12,Target13,Target14,Target15,Target16,Target17,Target18,Target19,Target20
+D,POC,POC,POC,POC,Target1,Target2,Target3,Target4,Target5,Target6,Target7,Target8,Target9,Target10,Target11,Target12,Target13,Target14,Target15,Target16,Target17,Target18,Target19,Target20
+E,POC,POC,POC,POC,Target1,Target2,Target3,Target4,Target5,Target6,Target7,Target8,Target9,Target10,Target11,Target12,Target13,Target14,Target15,Target16,Target17,Target18,Target19,Target20
+F,POC,POC,POC,POC,Target1,Target2,Target3,Target4,Target5,Target6,Target7,Target8,Target9,Target10,Target11,Target12,Target13,Target14,Target15,Target16,Target17,Target18,Target19,Target20
+G,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC
+H,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC
+I,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC
+J,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC,InnerC
+K,,,,,,,,,,,,,,,,,,,,,,,,
+L,,,,,Target1,Target2,Target3,Target4,Target5,Target6,Target7,Target8,,,Target11,Target12,Target13,Target14,Target15,Target16,,,Target19,Target20
+M,,,,,Target1,Target2,Target3,Target4,Target5,Target6,Target7,Target8,,,Target11,Target12,Target13,Target14,Target15,Target16,,,Target19,Target20
+N,,,,,Target1,Target2,Target3,Target4,Target5,Target6,Target7,Target8,,,Target11,Target12,Target13,Target14,Target15,Target16,,,Target19,Target20
+O,,,,,Target1,Target2,Target3,Target4,Target5,Target6,Target7,Target8,,,Target11,Target12,Target13,Target14,Target15,Target16,,,Target19,Target20
+P,,,,,,,,,,,,,,,,,,,,,,,,`;
+
+function isWellLike(v){return /^([A-Z]{1,2})(\d+)$/i.test((v||'').trim());}
+
+function bestPlateBySize(nRows,nCols){
+  const opts=['96','384','1536'];
+  let best='96',score=Infinity;
+  for(const k of opts){
+    const pr=PLATE[k].rows,pc=PLATE[k].cols;
+    const s=Math.abs(nRows-pr)/pr+Math.abs(nCols-pc)/pc;
+    if(s<score){score=s;best=k;}
+  }
+  return best;
+}
+
+function parseListRows(rows){
+  if(!rows||rows.length===0)return {header:[],data:[],hasHeader:false,wellIdx:-1,plateIdx:-1};
+  const nCols=Math.max(1,...rows.map(r=>r.length));
+  const first=rows[0]||[];
+  const explicitHeader=first.some(v=>/^(well|plate)$/i.test((v||'').trim()));
+  let hasHeader=explicitHeader;
+  if(!hasHeader){
+    const sample=rows.slice(0,Math.min(10,rows.length));
+    const wellLikeCount=sample.filter(r=>isWellLike(r[0]||'')).length;
+    hasHeader=wellLikeCount<2;
+  }
+
+  let header,data;
+  if(hasHeader){
+    header=[...first];
+    while(header.length<nCols)header.push('');
+    data=rows.slice(1);
+  }else{
+    header=[];
+    for(let i=0;i<nCols;i++)header.push(i===0?'Well':i===1?'Value':`Col ${i+1}`);
+    data=rows;
+  }
+
+  const wellIdxRaw=header.findIndex(v=>/^well$/i.test((v||'').trim()));
+  const plateIdx=header.findIndex(v=>/^plate$/i.test((v||'').trim()));
+  const wellIdx=wellIdxRaw!==-1?wellIdxRaw:0;
+  return {header,data,hasHeader,wellIdx,plateIdx};
+}
+
+function getWellColumnName(){
+  const input=document.getElementById('sWellName');
+  return input&&input.value?input.value:'Well';
+}
+
+function getValueColumnName(){
+  const input=document.getElementById('sValName');
+  return input&&input.value?input.value:'Value';
+}
+
+function getValueColumns(rows){
+  const parsed=parseListRows(rows);
+  const cols=[];
+  for(let i=0;i<parsed.header.length;i++){
+    const v=(parsed.header[i]||'').trim().toLowerCase();
+    if(v!=='well'&&v!=='plate'&&parsed.header[i]!=='')cols.push({i,name:parsed.header[i]||`Col ${i+1}`});
+  }
+  return cols;
+}
+
+// ══════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════
+let _iRows=null,_oRows=null,_plateData=null;
+let _selCells=new Set(),_selRows=new Set(),_selCols=new Set(),_anchorCell=null,_isDragging=false;
+
+function normRows(rows){
+  if(!rows||rows.length===0)return [['']];
+  const nCols=Math.max(1,...rows.map(r=>r.length));
+  return rows.map(r=>{const out=[...r];while(out.length<nCols)out.push('');return out;});
+}
+
+function clearSelection(){
+  _selCells.clear();_selRows.clear();_selCols.clear();
+}
+
+function selectAllCells(){
+  _iRows=normRows(_iRows);
+  clearSelection();
+  for(let r=0;r<_iRows.length;r++){
+    for(let c=0;c<_iRows[r].length;c++)_selCells.add(`${r},${c}`);
+  }
+}
+
+function applySelectionStyles(tbl){
+  if(!tbl)return;
+  tbl.querySelectorAll('td.dc').forEach(td=>td.classList.remove('sel'));
+  tbl.querySelectorAll('.rn').forEach(td=>td.classList.remove('sel'));
+  tbl.querySelectorAll('thead th').forEach(th=>th.classList.remove('sel'));
+  for(const key of _selCells){
+    const [r,c]=key.split(',');
+    const td=tbl.querySelector(`td.dc[data-r="${r}"][data-c="${c}"]`);
+    if(td)td.classList.add('sel');
+  }
+  for(const r of _selRows){
+    const rn=tbl.querySelector(`td.rn[data-r="${r}"]`);
+    if(rn)rn.classList.add('sel');
+    tbl.querySelectorAll(`td.dc[data-r="${r}"]`).forEach(td=>td.classList.add('sel'));
+  }
+  for(const c of _selCols){
+    const ch=tbl.querySelector(`thead th[data-c="${c}"]`);
+    if(ch)ch.classList.add('sel');
+    tbl.querySelectorAll(`td.dc[data-c="${c}"]`).forEach(td=>td.classList.add('sel'));
+  }
+}
+
+function selectRect(r1,c1,r2,c2){
+  const rs=Math.min(r1,r2),re=Math.max(r1,r2),cs=Math.min(c1,c2),ce=Math.max(c1,c2);
+  _selCells.clear();_selRows.clear();_selCols.clear();
+  for(let r=rs;r<=re;r++)for(let c=cs;c<=ce;c++)_selCells.add(`${r},${c}`);
+}
+
+function selectSingleCell(r,c){
+  _selRows.clear();_selCols.clear();_selCells.clear();_selCells.add(`${r},${c}`);
+}
+
+function handleCellMouseDown(e){
+  e.preventDefault();
+  const td=e.currentTarget,r=+td.dataset.r,c=+td.dataset.c;
+  const multi=e.ctrlKey||e.metaKey;
+  if(e.shiftKey&&_anchorCell){
+    selectRect(_anchorCell.r,_anchorCell.c,r,c);
+  }else if(multi){
+    const key=`${r},${c}`;
+    if(_selCells.has(key))_selCells.delete(key);else _selCells.add(key);
+    _selRows.clear();_selCols.clear();
+    _anchorCell={r,c};
+  }else{
+    selectSingleCell(r,c);
+    _anchorCell={r,c};
+    _isDragging=true;
+  }
+  td.focus();
+  applySelectionStyles(td.closest('table'));
+}
+
+function handleCellMouseEnter(e){
+  if(!_isDragging||!_anchorCell)return;
+  const td=e.currentTarget,r=+td.dataset.r,c=+td.dataset.c;
+  selectRect(_anchorCell.r,_anchorCell.c,r,c);
+  applySelectionStyles(td.closest('table'));
+}
+
+function handleRowSelect(e){
+  e.preventDefault();
+  const rn=e.currentTarget,r=+rn.dataset.r,multi=e.ctrlKey||e.metaKey;
+  _selCells.clear();_selCols.clear();
+  if(multi){if(_selRows.has(r))_selRows.delete(r);else _selRows.add(r);}else{_selRows.clear();_selRows.add(r);}
+  applySelectionStyles(rn.closest('table'));
+}
+
+function handleColSelect(e){
+  e.preventDefault();
+  const th=e.currentTarget,c=+th.dataset.c,multi=e.ctrlKey||e.metaKey;
+  _selCells.clear();_selRows.clear();
+  if(multi){if(_selCols.has(c))_selCols.delete(c);else _selCols.add(c);}else{_selCols.clear();_selCols.add(c);}
+  applySelectionStyles(th.closest('table'));
+}
+
+// ══════════════════════════════════════════
+// PARSING
+// ══════════════════════════════════════════
+function autoSep(txt){const s=txt.slice(0,3000);const t=(s.match(/\t/g)||[]).length,c=(s.match(/,/g)||[]).length,sc=(s.match(/;/g)||[]).length;if(t>=c&&t>=sc)return '\t';if(sc>c)return ';';return ',';}
+function splitCSVLine(line){const r=[];let cur='',inQ=false;for(let i=0;i<line.length;i++){const ch=line[i];if(ch==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}else if(ch===','&&!inQ){r.push(cur.trim());cur='';}else cur+=ch;}r.push(cur.trim());return r;}
+function parseText(txt){const sepOpt=document.getElementById('sSep').value;const sep=sepOpt==='auto'?autoSep(txt):sepOpt;return txt.trim().split(/\r?\n/).map(l=>sep===','?splitCSVLine(l):l.split(sep).map(c=>c.trim()));}
+
+// ══════════════════════════════════════════
+// FORMAT & PLATE DETECTION
+// ══════════════════════════════════════════
+function detectFmt(rows){
+  if(!rows||rows.length<1)return 'unknown';
+  const h=rows[0]||[];
+  if(h.slice(1).filter(v=>/^\d+$/.test((v||'').trim())).length>=3)return 'layout';
+  if(h.some(v=>/^well$/i.test((v||'').trim())))return 'list';
+
+  const sample=rows.slice(0,Math.min(rows.length,12));
+  const sampleNoFirst=rows.slice(1,Math.min(rows.length,12));
+  if(sampleNoFirst.length>0&&sampleNoFirst.filter(r=>/^[A-Z]{1,2}$/.test(((r[0]||'').trim()).toUpperCase())).length>=Math.min(3,sampleNoFirst.length))return 'layout';
+
+  const wellLike=sample.filter(r=>isWellLike(r[0]||'')).length;
+  if(wellLike>=2)return 'list';
+
+  // Unlabeled plate-like matrix: no 123/ABC headers, shape close to known plates.
+  const nRows=rows.length,nCols=Math.max(...rows.map(r=>r.length),1);
+  const best=bestPlateBySize(nRows,nCols);
+  const pr=PLATE[best].rows,pc=PLATE[best].cols;
+  const nearShape=Math.abs(nRows-pr)<=2&&Math.abs(nCols-pc)<=2;
+  if(nearShape&&(nRows>=6&&nCols>=8))return 'layout';
+
+  return 'unknown';
+}
+function autoDetectPlate(rows){
+  const fmt=detectFmt(rows);
+  let maxRowIdx=-1,maxCol=0;
+  if(fmt==='layout'){
+    for(const row of rows){const v=(row[0]||'').trim().toUpperCase();if(/^[A-Z]{1,2}$/.test(v)){const ri=ALL_ROWS.indexOf(v);if(ri>maxRowIdx)maxRowIdx=ri;}for(const cell of row.slice(1)){const n=parseInt(cell);if(!isNaN(n))maxCol=Math.max(maxCol,n);}}
+  }else if(fmt==='list'){
+    const h=rows[0],wi=h.findIndex(v=>/^well$/i.test((v||'').trim()));
+    if(wi!==-1){for(let i=1;i<rows.length;i++){const m=((rows[i][wi]||'')).trim().toUpperCase().match(/^([A-Z]{1,2})(\d+)$/);if(m){const ri=ALL_ROWS.indexOf(m[1]);if(ri>maxRowIdx)maxRowIdx=ri;maxCol=Math.max(maxCol,parseInt(m[2]));}}}
+    else{for(let i=0;i<rows.length;i++){const m=((rows[i][0]||'')).trim().toUpperCase().match(/^([A-Z]{1,2})(\d+)$/);if(m){const ri=ALL_ROWS.indexOf(m[1]);if(ri>maxRowIdx)maxRowIdx=ri;maxCol=Math.max(maxCol,parseInt(m[2]));}}}
+  }
+  if(maxRowIdx===-1&&maxCol===0){
+    const nRows=rows.length,nCols=Math.max(...rows.map(r=>r.length),1);
+    return bestPlateBySize(nRows,nCols);
+  }
+  if(maxRowIdx>=16||maxCol>24)return '1536';
+  if(maxRowIdx>=8||maxCol>12)return '384';
+  return '96';
+}
+function getEffectivePlate(){const s=document.getElementById('sPlate').value;return s==='auto'?(_iRows?autoDetectPlate(_iRows):'96'):s;}
+
+// ══════════════════════════════════════════
+// TABLE RENDERING
+// ══════════════════════════════════════════
+function renderTable(wrap,rows,opts={}){
+  const{editable=true,cls=''}=opts;
+  const hint=wrap.querySelector('.empty-hint');
+  wrap.querySelectorAll('table').forEach(t=>t.remove());
+  if(!rows||rows.length===0){if(hint)hint.style.display='';return;}
+  if(hint)hint.style.display='none';
+  const nCols=Math.max(...rows.map(r=>r.length),1);
+  const tbl=document.createElement('table');
+  tbl.className='grid-tbl'+(cls?' '+cls:'');
+  // header
+  const hrow=tbl.createTHead().insertRow();
+  const corner=document.createElement('th');corner.className='corner';hrow.appendChild(corner);
+  for(let c=0;c<nCols;c++){
+    const th=document.createElement('th');th.textContent=c+1;th.dataset.c=c;
+    if(editable)th.addEventListener('mousedown',handleColSelect);
+    hrow.appendChild(th);
+  }
+  // body
+  const tbody=tbl.createTBody();
+  for(let ri=0;ri<rows.length;ri++){
+    const tr=tbody.insertRow();
+    const rn=document.createElement('td');rn.className='rn';rn.textContent=ri+1;rn.dataset.r=ri;
+    if(editable)rn.addEventListener('mousedown',handleRowSelect);
+    tr.appendChild(rn);
+    for(let ci=0;ci<nCols;ci++){
+      const td=document.createElement('td');td.className='dc';
+      td.dataset.r=ri;td.dataset.c=ci;
+      td.textContent=ci<rows[ri].length?(rows[ri][ci]||''):'';
+      if(editable){
+        td.contentEditable='true';td.spellcheck=false;
+        td.addEventListener('keydown',cellKD);
+        td.addEventListener('input',cellIN);
+        td.addEventListener('mousedown',handleCellMouseDown);
+        td.addEventListener('mouseenter',handleCellMouseEnter);
+      }
+      tr.appendChild(td);
+    }
+  }
+  wrap.appendChild(tbl);
+  if(editable)applySelectionStyles(tbl);
+}
+
+function cellKD(e){
+  const td=e.currentTarget,ri=+td.dataset.r,ci=+td.dataset.c,tbl=td.closest('table');
+  const q=(r,c)=>tbl.querySelector(`td[data-r="${r}"][data-c="${c}"]`);
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='a'){
+    e.preventDefault();
+    selectAllCells();
+    applySelectionStyles(tbl);
+    return;
+  }
+  if(e.key==='Delete'||e.key==='Backspace'){
+    e.preventDefault();
+    if(_selRows.size>0)deleteSelectedRows();
+    else if(_selCols.size>0)deleteSelectedCols();
+    else if(_selCells.size>0)deleteSelectedCells();
+    return;
+  }
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();const n=q(ri+1,ci);if(n)n.focus();}
+  else if(e.key==='Tab'){e.preventDefault();if(e.shiftKey){const p=ci>0?q(ri,ci-1):q(ri-1,0);if(p)p.focus();}else{const n=q(ri,ci+1)||q(ri+1,0);if(n)n.focus();}}
+  else if(e.key==='ArrowDown'){const n=q(ri+1,ci);if(n){e.preventDefault();n.focus();}}
+  else if(e.key==='ArrowUp'){const p=q(ri-1,ci);if(p){e.preventDefault();p.focus();}}
+  else if(e.key==='ArrowRight'&&cursorAtEnd(td)){const n=q(ri,ci+1);if(n){e.preventDefault();n.focus();}}
+  else if(e.key==='ArrowLeft'&&cursorAtStart(td)){const p=q(ri,ci-1);if(p){e.preventDefault();p.focus();}}
+}
+function cursorAtEnd(el){const s=window.getSelection();return!s.rangeCount||s.getRangeAt(0).endOffset>=el.textContent.length;}
+function cursorAtStart(el){const s=window.getSelection();return!s.rangeCount||s.getRangeAt(0).startOffset===0;}
+
+let _ciTimer;
+function cellIN(e){
+  const td=e.currentTarget,ri=+td.dataset.r,ci=+td.dataset.c;
+  if(_iRows&&ri<_iRows.length){while(_iRows[ri].length<=ci)_iRows[ri].push('');_iRows[ri][ci]=td.textContent.trim();}
+  clearTimeout(_ciTimer);_ciTimer=setTimeout(()=>onInputChanged(false),350);
+}
+
+function readTableRows(wrap){
+  const tbl=wrap.querySelector('table');if(!tbl)return null;
+  return[...tbl.tBodies[0].rows].map(tr=>[...tr.querySelectorAll('td.dc')].map(td=>td.textContent.trim()));
+}
+
+document.addEventListener('mouseup',()=>{_isDragging=false;});
+
+// ══════════════════════════════════════════
+// PASTE & FILE
+// ══════════════════════════════════════════
+const iTblWrap=document.getElementById('iTblWrap');
+
+iTblWrap.addEventListener('paste',e=>{
+  e.preventDefault();
+  const text=e.clipboardData.getData('text/plain');if(!text)return;
+  const pasted=parseText(text);
+  const focused=iTblWrap.querySelector('[contenteditable]:focus');
+  const sr=focused?+focused.dataset.r:0,sc=focused?+focused.dataset.c:0;
+  if(!_iRows||!focused){_iRows=normRows(pasted);}
+  else{
+    _iRows=normRows(_iRows);
+    const nr=sr+pasted.length,nc=sc+Math.max(...pasted.map(r=>r.length));
+    while(_iRows.length<nr)_iRows.push([]);
+    for(let r=0;r<_iRows.length;r++)while(_iRows[r].length<nc)_iRows[r].push('');
+    for(let pr=0;pr<pasted.length;pr++)for(let pc=0;pc<pasted[pr].length;pc++)_iRows[sr+pr][sc+pc]=pasted[pr][pc];
+  }
+  clearSelection();
+  renderTable(iTblWrap,_iRows,{editable:true});
+  onInputChanged(true);
+});
+
+iTblWrap.addEventListener('dragover',e=>{e.preventDefault();iTblWrap.classList.add('drag-over');});
+iTblWrap.addEventListener('dragleave',()=>iTblWrap.classList.remove('drag-over'));
+iTblWrap.addEventListener('drop',e=>{e.preventDefault();iTblWrap.classList.remove('drag-over');const f=e.dataTransfer.files[0];if(f)readFile(f);});
+document.getElementById('fInput').addEventListener('change',e=>{const f=e.target.files[0];if(f){e.target.value='';readFile(f);}});
+function readFile(f){const rd=new FileReader();rd.onload=ev=>{_iRows=normRows(parseText(ev.target.result));clearSelection();renderTable(iTblWrap,_iRows,{editable:true});onInputChanged(true);};rd.readAsText(f,'UTF-8');}
+
+// ══════════════════════════════════════════
+// INPUT CHANGE
+// ══════════════════════════════════════════
+function onInputChanged(autoPlate=true){
+  if(!_iRows||_iRows.length===0){setBadge('i','unknown');document.getElementById('iInf').textContent='';document.getElementById('iPlateBadge').className='badge unknown hidden';document.getElementById('vcWrap').classList.add('hidden');return;}
+  const fmt=detectFmt(_iRows);
+  setBadge('i',fmt);
+  const nCols=Math.max(..._iRows.map(r=>r.length));
+  document.getElementById('iInf').textContent=`${_iRows.length} rows × ${nCols} cols`;
+  if(autoPlate){
+    const pt=autoDetectPlate(_iRows);
+    const pb=document.getElementById('iPlateBadge');
+    pb.className=`badge p${pt}`;pb.textContent=`${pt}-well`;pb.classList.remove('hidden');
+    if(document.getElementById('sPlate').value==='auto'||true){/* always show detected */}
+  }
+  updateVcSel(_iRows);
+}
+function onSettingChange(){if(_iRows)onInputChanged(true);}
+
+function addRow(){
+  _iRows=normRows(_iRows);
+  _iRows.push(Array(_iRows[0].length).fill(''));
+  clearSelection();
+  renderTable(iTblWrap,_iRows,{editable:true});
+  onInputChanged(true);
+}
+
+function addCol(){
+  _iRows=normRows(_iRows);
+  for(const row of _iRows)row.push('');
+  clearSelection();
+  renderTable(iTblWrap,_iRows,{editable:true});
+  onInputChanged(true);
+}
+
+function deleteSelectedCells(){
+  _iRows=normRows(_iRows);
+  if(!_selCells.size){toast('No cells selected.','info');return;}
+  for(const key of _selCells){
+    const [r,c]=key.split(',').map(Number);
+    if(_iRows[r]&&c<_iRows[r].length)_iRows[r][c]='';
+  }
+  renderTable(iTblWrap,_iRows,{editable:true});
+  onInputChanged(false);
+}
+
+function deleteSelectedRows(){
+  _iRows=normRows(_iRows);
+  if(!_selRows.size){toast('No rows selected.','info');return;}
+  const idx=[..._selRows].sort((a,b)=>b-a);
+  const nCols=_iRows[0].length;
+  for(const r of idx)if(r>=0&&r<_iRows.length)_iRows.splice(r,1);
+  if(_iRows.length===0)_iRows=[Array(nCols).fill('')];
+  _iRows=normRows(_iRows);
+  clearSelection();
+  renderTable(iTblWrap,_iRows,{editable:true});
+  onInputChanged(true);
+}
+
+function deleteSelectedCols(){
+  _iRows=normRows(_iRows);
+  if(!_selCols.size){toast('No columns selected.','info');return;}
+  const nCols=_iRows[0].length;
+  if(_selCols.size>=nCols){toast('Cannot delete all columns.','err');return;}
+  const idx=[..._selCols].sort((a,b)=>b-a);
+  for(const row of _iRows){for(const c of idx)if(c>=0&&c<row.length)row.splice(c,1);} 
+  _iRows=normRows(_iRows);
+  clearSelection();
+  renderTable(iTblWrap,_iRows,{editable:true});
+  onInputChanged(true);
+}
+
+// ══════════════════════════════════════════
+// LAYOUT → LIST
+// ══════════════════════════════════════════
+function layoutToList(rows,pt){
+  const{cols}=PLATE[pt];const rlSet=ROW_SETS[pt];
+  const emptyOpt=document.getElementById('sEmpty').value;
+  const wn=getWellColumnName();
+  const defaultVn=getValueColumnName();
+
+  // Unlabeled matrix mode: no col-number header and no row-letter header.
+  const hasColHdr=(rows[0]||[]).slice(1).filter(c=>/^\d+$/.test((c||'').trim())).length>=3;
+  const rowLabelCount=rows.slice(0,Math.min(rows.length,8)).filter(r=>/^[A-Z]{1,2}$/.test(((r[0]||'').trim()).toUpperCase())).length;
+  const hasRowHdr=rowLabelCount>=3;
+  if(!hasColHdr&&!hasRowHdr){
+    const rl=ROW_LABELS[pt];
+    const out=[[wn,defaultVn]];
+    for(let ri=0;ri<Math.min(rows.length,rl.length);ri++){
+      const row=rows[ri]||[];
+      for(let cn=1;cn<=Math.min(cols,row.length);cn++){
+        const raw=(row[cn-1]||'').trim();
+        const isEmpty=EMPTY_SET.has(raw.toLowerCase());
+        if(isEmpty&&emptyOpt==='skip')continue;
+        const val=isEmpty?(emptyOpt===''?'':emptyOpt):raw;
+        out.push([`${rl[ri]}${cn}`,val]);
+      }
+    }
+    return out;
+  }
+
+  function isHdr(row){if(!row||!row[0])return false;return row.slice(1).filter(c=>/^\d+$/.test((c||'').trim())).length>=3;}
+  const blocks=[];
+  for(let i=0;i<rows.length;i++)if(isHdr(rows[i]))blocks.push({name:rows[i][0].trim(),hdrIdx:i});
+  if(!blocks.length)blocks.push({name:'Plate',hdrIdx:0});
+  for(let b=0;b<blocks.length;b++)blocks[b].end=(b+1<blocks.length)?blocks[b+1].hdrIdx:rows.length;
+  const hdrNames=blocks.map(b=>rows[b.hdrIdx]&&rows[b.hdrIdx][0]?(rows[b.hdrIdx][0]||'').trim():'');
+  const valueNames=blocks.map((_,idx)=>hdrNames[idx]||`Value-${idx+1}`);
+  const multi=blocks.length>1;
+  if(multi){
+    const out=[[wn,...valueNames]];
+    const orderedWells=[];
+    const rowByWell=new Map();
+    const ensureRow=(well)=>{
+      if(!rowByWell.has(well)){
+        const row=[well,...Array(blocks.length).fill('')];
+        rowByWell.set(well,row);
+        orderedWells.push(well);
+      }
+      return rowByWell.get(well);
+    };
+
+    for(let bi=0;bi<blocks.length;bi++){
+      const blk=blocks[bi];
+      const hdr=rows[blk.hdrIdx],colMap={};
+      for(let ci=1;ci<hdr.length;ci++){
+        const v=(hdr[ci]||'').trim();
+        if(/^\d+$/.test(v)){
+          const n=parseInt(v);
+          if(n>=1&&n<=cols)colMap[n]=ci;
+        }
+      }
+      for(let ri=blk.hdrIdx+1;ri<blk.end;ri++){
+        const row=rows[ri];if(!row||!row[0])continue;
+        const letter=(row[0]||'').trim().toUpperCase();if(!rlSet.has(letter))continue;
+        for(const[cns,ci] of Object.entries(colMap)){
+          const cn=parseInt(cns),raw=ci<row.length?(row[ci]||'').trim():'';
+          const isEmpty=EMPTY_SET.has(raw.toLowerCase());
+          if(isEmpty&&emptyOpt==='skip')continue;
+          const val=isEmpty?(emptyOpt===''?'':emptyOpt):raw;
+          const outRow=ensureRow(`${letter}${cn}`);
+          outRow[bi+1]=val;
+        }
+      }
+    }
+
+    for(const well of orderedWells){
+      const row=rowByWell.get(well);
+      if(emptyOpt==='skip'&&row.slice(1).every(v=>v===''))continue;
+      out.push(row);
+    }
+    return out;
+  }
+
+  const vn=valueNames[0]||defaultVn;
+  const out=[[wn,vn]];
+  for(let bi=0;bi<blocks.length;bi++){
+    const blk=blocks[bi];
+    const hdr=rows[blk.hdrIdx],colMap={};
+    for(let ci=1;ci<hdr.length;ci++){const v=(hdr[ci]||'').trim();if(/^\d+$/.test(v)){const n=parseInt(v);if(n>=1&&n<=cols)colMap[n]=ci;}}
+    for(let ri=blk.hdrIdx+1;ri<blk.end;ri++){
+      const row=rows[ri];if(!row||!row[0])continue;
+      const letter=(row[0]||'').trim().toUpperCase();if(!rlSet.has(letter))continue;
+      for(const[cns,ci] of Object.entries(colMap)){
+        const cn=parseInt(cns),raw=ci<row.length?(row[ci]||'').trim():'';
+        const isEmpty=EMPTY_SET.has(raw.toLowerCase());
+        if(isEmpty&&emptyOpt==='skip')continue;
+        const val=isEmpty?(emptyOpt===''?'':emptyOpt):raw;
+        out.push([`${letter}${cn}`,val]);
+      }
+    }
+  }
+  return out;
+}
+
+// ══════════════════════════════════════════
+// LIST → LAYOUT
+// ══════════════════════════════════════════
+function buildGrid(dataRows,wi,vi,rl,nCols,rlSet,title){
+  const grid={};
+  for(const row of dataRows){const m=((row[wi]||'')).trim().toUpperCase().match(/^([A-Z]{1,2})(\d+)$/);if(!m)continue;const l=m[1],c=parseInt(m[2]);if(!rlSet.has(l)||c<1||c>nCols)continue;grid[`${l}${c}`]=(row[vi]||'').trim();}
+  const out=[[title||'', ...Array.from({length:nCols},(_,i)=>String(i+1))]];
+  for(const r of rl){const row=[r];for(let c=1;c<=nCols;c++)row.push(grid[`${r}${c}`]||'');out.push(row);}
+  return out;
+}
+function listToLayout(rows,pt,vi){
+  const{cols:nCols}=PLATE[pt];const rl=ROW_LABELS[pt],rlSet=ROW_SETS[pt];
+  const parsed=parseListRows(rows);
+  const h=parsed.header,data=parsed.data;
+  const wellIdx=parsed.wellIdx,pidx=parsed.plateIdx;
+  const valueCols=getValueColumns(rows);
+  const fallbackIdx=h.length>1?1:0;
+  const selectedIdxs=(Array.isArray(vi)?vi:[vi])
+    .filter(idx=>idx!=null&&idx>=0&&idx<h.length);
+  const valueIdxs=(selectedIdxs.length?selectedIdxs:(valueCols.length?[valueCols[0].i]:[fallbackIdx]));
+
+  function buildForValue(valIdx){
+    const valueTitle=(h[valIdx]||getValueColumnName()).trim()||'Value';
+    if(pidx!==-1){
+      const groups=new Map(),order=[];
+      for(let ri=0;ri<data.length;ri++){
+        const r=data[ri];
+        const pn=(r[pidx]||'').trim()||'Plate';
+        if(!groups.has(pn)){groups.set(pn,[]);order.push(pn);}
+        groups.get(pn).push(r);
+      }
+      const all=[];
+      for(const pn of order){
+        if(all.length>0)all.push(Array(nCols+1).fill(''));
+        all.push([valueTitle,...Array.from({length:nCols},(_,i)=>String(i+1))]);
+        const g=buildGrid(groups.get(pn),wellIdx,valIdx,rl,nCols,rlSet,valueTitle);
+        for(const r of g.slice(1))all.push(r);
+      }
+      return all;
+    }
+    return buildGrid(data,wellIdx,valIdx,rl,nCols,rlSet,valueTitle);
+  }
+
+  if(valueIdxs.length===1)return buildForValue(valueIdxs[0]);
+  const all=[];
+  for(const valIdx of valueIdxs){
+    const block=buildForValue(valIdx);
+    if(all.length>0)all.push(Array(nCols+1).fill(''));
+    for(const row of block)all.push(row);
+  }
+  return all;
+}
+
+// ══════════════════════════════════════════
+// SERIALIZE
+// ══════════════════════════════════════════
+function toCSV(rows){return rows.map(r=>r.map(c=>{const s=String(c==null?'':c);return(s.includes(',')||s.includes('"')||s.includes('\n'))?'"'+s.replace(/"/g,'""')+'"':s;}).join(',')).join('\n');}
+function toTSV(rows){return rows.map(r=>r.join('\t')).join('\n');}
+
+// ══════════════════════════════════════════
+// VALUE COLUMN SELECTOR
+// ══════════════════════════════════════════
+function updateVcSel(rows){
+  const dir=document.getElementById('sDir').value,fmt=detectFmt(rows);
+  const isListIn=(dir==='l2L')||(dir==='auto'&&fmt==='list');
+  const wrap=document.getElementById('vcWrap');
+  if(!isListIn||!rows||rows.length<1){wrap.classList.add('hidden');return;}
+  const cols=getValueColumns(rows);
+  if(cols.length<=1){wrap.classList.add('hidden');return;}
+  const sel=document.getElementById('vcSel');
+  sel.innerHTML=`<option value="all">All</option>`+cols.map(c=>`<option value="${c.i}">${escHtml(c.name)}</option>`).join('');
+  sel.value='all';
+  wrap.classList.remove('hidden');
+}
+function getValColIdx(rows){
+  const sel=document.getElementById('vcSel'),wrap=document.getElementById('vcWrap');
+  const cols=getValueColumns(rows);
+  if(!wrap.classList.contains('hidden')&&sel.options.length>0){
+    if(sel.value==='all')return cols.map(c=>c.i);
+    return [parseInt(sel.value)];
+  }
+  return cols.length?[cols[0].i]:[1];
+}
+
+// ══════════════════════════════════════════
+// CONVERT
+// ══════════════════════════════════════════
+function convert(){
+  const latest=readTableRows(iTblWrap);if(latest)_iRows=latest;
+  if(!_iRows||_iRows.length===0){toast('Paste or load data first.','err');return;}
+  const pt=getEffectivePlate();
+  const dirSel=document.getElementById('sDir').value,fmt=detectFmt(_iRows);
+  let dir=dirSel==='auto'?(fmt==='layout'?'L2l':fmt==='list'?'l2L':null):dirSel;
+  if(!dir){toast('Cannot auto-detect format — select direction manually.','err');return;}
+  let out;
+  try{
+    if(dir==='L2l'){out=layoutToList(_iRows,pt);setBadge('i','layout');setBadge('o','list');document.getElementById('dBadge').textContent='Map → List';}
+    else{out=listToLayout(_iRows,pt,getValColIdx(_iRows));setBadge('i','list');setBadge('o','layout');document.getElementById('dBadge').textContent='List → Map';}
+  }catch(e){toast('Error: '+e.message,'err');console.error(e);return;}
+  _oRows=out;
+  renderTable(document.getElementById('oTblWrap'),_oRows,{editable:false,cls:'out-tbl'});
+  const oi=document.getElementById('oInf');
+  oi.textContent=dir==='L2l'?`${out.length-1} well entries`:`${PLATE[pt].rows} rows × ${PLATE[pt].cols} cols`;
+  buildPlateData(dir,_iRows,out,pt);renderMap();
+  toast(`Done — ${out.length-1} data rows.`,'ok');
+}
+
+// ══════════════════════════════════════════
+// PLATE MAP
+// ══════════════════════════════════════════
+function buildPlateDataFromLayout(rows,pt){
+  const rlSet=ROW_SETS[pt];
+  const {cols}=PLATE[pt];
+  const defaultValueName=getValueColumnName();
+  const hasColHdr=(rows[0]||[]).slice(1).filter(c=>/^\d+$/.test((c||'').trim())).length>=3;
+  const rowLabelCount=rows.slice(0,Math.min(rows.length,8)).filter(r=>/^[A-Z]{1,2}$/.test(((r[0]||'').trim()).toUpperCase())).length;
+  const hasRowHdr=rowLabelCount>=3;
+
+  if(!hasColHdr&&!hasRowHdr){
+    const rl=ROW_LABELS[pt];
+    const grid=new Map();
+    for(let ri=0;ri<Math.min(rows.length,rl.length);ri++){
+      const row=rows[ri]||[];
+      for(let cn=1;cn<=Math.min(cols,row.length);cn++){
+        const val=(row[cn-1]||'').trim();
+        if(val&&!EMPTY_SET.has(val.toLowerCase()))grid.set(`${rl[ri]}${cn}`,val);
+      }
+    }
+    return [{name:defaultValueName,grid}];
+  }
+
+  function isHdr(row){if(!row||!row[0])return false;return row.slice(1).filter(c=>/^\d+$/.test((c||'').trim())).length>=3;}
+  const blocks=[];
+  for(let i=0;i<rows.length;i++)if(isHdr(rows[i]))blocks.push({hdrIdx:i});
+  if(!blocks.length)blocks.push({hdrIdx:0});
+  for(let b=0;b<blocks.length;b++)blocks[b].end=(b+1<blocks.length)?blocks[b+1].hdrIdx:rows.length;
+
+  return blocks.map((blk,idx)=>{
+    const hdr=rows[blk.hdrIdx],colMap={},grid=new Map();
+    const valueName=((hdr&&hdr[0])||'').trim()||`Value-${idx+1}`;
+    for(let ci=1;ci<hdr.length;ci++){
+      const v=(hdr[ci]||'').trim();
+      if(/^\d+$/.test(v)){
+        const n=parseInt(v);
+        if(n>=1&&n<=cols)colMap[n]=ci;
+      }
+    }
+    for(let ri=blk.hdrIdx+1;ri<blk.end;ri++){
+      const row=rows[ri];if(!row||!row[0])continue;
+      const letter=(row[0]||'').trim().toUpperCase();if(!rlSet.has(letter))continue;
+      for(const[cns,ci] of Object.entries(colMap)){
+        const cn=parseInt(cns),val=ci<row.length?(row[ci]||'').trim():'';
+        if(val&&!EMPTY_SET.has(val.toLowerCase()))grid.set(`${letter}${cn}`,val);
+      }
+    }
+    return {name:valueName,grid};
+  });
+}
+
+function buildPlateData(dir,inputRows,outputRows,pt){
+  if(dir==='L2l'){
+    _plateData=buildPlateDataFromLayout(inputRows,pt);
+    return;
+  }
+  const listRows=(dir==='L2l')?outputRows:inputRows;
+  const parsed=parseListRows(listRows);
+  const h=parsed.header,data=parsed.data;
+  const wi=parsed.wellIdx;if(wi===-1){_plateData=null;return;}
+  const pi=parsed.plateIdx;
+  const valueIdxs=getValColIdx(listRows);
+  const plateData=[];
+  for(const vi of valueIdxs){
+    const valueName=(h[vi]||getValueColumnName()).trim()||'Value';
+    const groups=new Map(),order=[];
+    for(let ri=0;ri<data.length;ri++){
+      const r=data[ri],pn=pi!==-1?(r[pi]||'').trim()||'Plate':'Plate';
+      const well=((r[wi]||'')).trim().toUpperCase(),val=(r[vi]||'').trim();
+      if(!well)continue;
+      if(!groups.has(pn)){groups.set(pn,new Map());order.push(pn);}
+      if(val&&!EMPTY_SET.has(val.toLowerCase()))groups.get(pn).set(well,val);
+    }
+    for(const pn of order){
+      plateData.push({name:order.length>1?`${valueName} - ${pn}`:valueName,grid:groups.get(pn)});
+    }
+  }
+  _plateData=plateData;
+}
+const PALETTE=['#4e79a7','#f28e2b','#e15759','#76b7b2','#59a14f','#edc948','#b07aa1','#ff9da7','#9c755f','#bab0ac','#6ea6cd','#e06c75','#98c379','#d19a66','#c678dd','#56b6c2','#61afef','#e5c07b','#ff6b6b','#4ecdc4','#45b7d1','#96e6a1','#a29bfe','#fd79a8'];
+const colorMap=new Map();
+function getColor(v){if(!colorMap.has(v))colorMap.set(v,PALETTE[colorMap.size%PALETTE.length]);return colorMap.get(v);}
+function hexRGB(h){return[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];}
+function contrast(h){const[r,g,b]=hexRGB(h);return(0.299*r+0.587*g+0.114*b)>140?'#000':'#fff';}
+function renderMap(){
+  const sec=document.getElementById('pmSection');
+  if(!_plateData||!_plateData.length){sec.classList.add('hidden');return;}
+  const pt=getEffectivePlate(),{cols:nCols}=PLATE[pt],rl=ROW_LABELS[pt];
+  const cont=document.getElementById('pmcont'),lgd=document.getElementById('lgdCont');
+  sec.classList.remove('hidden');cont.innerHTML='';lgd.innerHTML='';colorMap.clear();
+  for(const{grid} of _plateData)for(const v of grid.values())getColor(v);
+  const contW=Math.max(420,cont.clientWidth||window.innerWidth-80);
+  const mapsPerRow=contW<780?1:2;
+  const perPlateW=Math.max(260,Math.floor((contW-(mapsPerRow-1)*20)/mapsPerRow));
+  const fitCell=Math.max(4,Math.floor((perPlateW-12)/(nCols+1)));
+  const targetCell=Math.floor(fitCell*1.35);
+  const cs=pt==='96'
+    ?Math.max(24,Math.min(fitCell,Math.min(52,targetCell)))
+    :pt==='384'
+      ?Math.max(10,Math.min(fitCell,Math.min(24,targetCell)))
+      :Math.max(5,Math.min(fitCell,Math.min(12,targetCell)));
+  const showTxt=pt==='96',isCirc=pt==='96',gap=pt==='1536'?0:1,hfs=Math.max(5,cs-10);
+  for(const{name,grid} of _plateData){
+    const blk=document.createElement('div');
+    blk.className='pblock';
+    const ttl=document.createElement('div');ttl.className='pblk-title';ttl.textContent=name;blk.appendChild(ttl);
+    const g=document.createElement('div');g.style.cssText=`display:grid;grid-template-columns:${cs}px repeat(${nCols},${cs}px);gap:${gap}px`;
+    mc(g,cs,cs,'','transparent');
+    for(let c=1;c<=nCols;c++){const el=mc(g,cs,cs,String(c),'transparent');Object.assign(el.style,{fontSize:hfs+'px',color:'#bbb',fontWeight:'700',display:'flex',alignItems:'center',justifyContent:'center'});}
+    for(const r of rl){
+      const re=mc(g,cs,cs,r,'transparent');Object.assign(re.style,{fontSize:hfs+'px',color:'#bbb',fontWeight:'700',display:'flex',alignItems:'center',justifyContent:'flex-end',paddingRight:'2px'});
+      for(let c=1;c<=nCols;c++){
+        const key=`${r}${c}`,val=grid.get(key),el=document.createElement('div');
+        el.style.cssText=`width:${cs}px;height:${cs}px;border-radius:${isCirc?'50%':'2px'};box-sizing:border-box;cursor:default`;
+        if(val){const bg=getColor(val),fg=contrast(bg);el.style.background=bg;el.title=`${key}: ${val}`;if(showTxt)Object.assign(el.style,{display:'flex',alignItems:'center',justifyContent:'center',fontSize:'6px',fontWeight:'700',color:fg,overflow:'hidden'});if(showTxt)el.textContent=val.length>7?val.slice(0,7):val;}
+        else{el.style.background='#f0f1f3';el.style.border='1px solid #e0e2e6';el.title=key;}
+        g.appendChild(el);
+      }
+    }
+    blk.appendChild(g);
+
+    const localValues=[...new Set(grid.values())];
+    if(localValues.length){
+      const localLegend=document.createElement('div');
+      localLegend.className='lgd';
+      if(localValues.length<=40){
+        for(const value of localValues){
+          const item=document.createElement('div');
+          item.className='lgdi';
+          item.innerHTML=`<div class="lgdot" style="background:${getColor(value)}"></div><span>${escHtml(value)}</span>`;
+          localLegend.appendChild(item);
+        }
+      }else{
+        localLegend.innerHTML=`<span style="color:#aaa;font-size:.7rem">${localValues.length} unique values - legend omitted</span>`;
+      }
+      blk.appendChild(localLegend);
+    }
+
+    cont.appendChild(blk);
+  }
+  lgd.innerHTML='';
+}
+function mc(p,w,h,txt,bg){const el=document.createElement('div');el.style.width=w+'px';el.style.height=h+'px';if(bg)el.style.background=bg;if(txt)el.textContent=txt;p.appendChild(el);return el;}
+
+// ══════════════════════════════════════════
+// MISC
+// ══════════════════════════════════════════
+function setBadge(which,fmt){const el=document.getElementById(which==='i'?'iBadge':'oBadge');el.className='badge '+(fmt||'unknown');el.textContent=fmt==='layout'?'Map':fmt==='list'?'List':'—';}
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function clearInput(){
+  _iRows=null;clearSelection();renderTable(iTblWrap,null,{editable:true});
+  setBadge('i','unknown');document.getElementById('iInf').textContent='';
+  document.getElementById('iPlateBadge').className='badge unknown hidden';
+  document.getElementById('vcWrap').classList.add('hidden');
+}
+function useAsInput(){
+  if(!_oRows||!_oRows.length){toast('No output to use as input.','err');return;}
+  _iRows=normRows(_oRows.map(r=>[...r]));clearSelection();renderTable(iTblWrap,_iRows,{editable:true});onInputChanged(true);
+  _oRows=null;renderTable(document.getElementById('oTblWrap'),null,{editable:false});
+  setBadge('o','unknown');document.getElementById('oInf').textContent='';_plateData=null;
+  document.getElementById('pmSection').classList.add('hidden');toast('Output moved to input.','ok');
+}
+function copyOut(){
+  if(!_oRows){toast('Nothing to copy.','err');return;}
+  const text=toTSV(_oRows);
+  navigator.clipboard.writeText(text).then(()=>toast('Copied as TSV!','ok')).catch(()=>{const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('Copied!','ok');});
+}
+function getDateStamp(){
+  const now=new Date();
+  const yyyy=String(now.getFullYear());
+  const mm=String(now.getMonth()+1).padStart(2,'0');
+  const dd=String(now.getDate()).padStart(2,'0');
+  return `${yyyy}${mm}${dd}`;
+}
+function sanitizeFilePart(value){
+  return String(value||'Value').trim().replace(/[\\/:*?"<>|\s]+/g,'_').replace(/^_+|_+$/g,'')||'Value';
+}
+function getOutputValueNames(rows){
+  if(!rows||!rows.length)return ['Value'];
+  const fmt=detectFmt(rows);
+  if(fmt==='list'){
+    const parsed=parseListRows(rows);
+    const cols=getValueColumns(rows);
+    const names=cols.map(col=>parsed.header[col.i]||`Value_${col.i}`)
+      .map(name=>String(name).trim())
+      .filter(Boolean);
+    return names.length?names:['Value'];
+  }
+  if(fmt==='layout'){
+    const names=[];
+    for(const row of rows){
+      const first=(row&&row[0]?String(row[0]).trim():'');
+      if(first&&!/^[A-Z]{1,2}$/.test(first)&&!EMPTY_SET.has(first.toLowerCase()))names.push(first);
+    }
+    const uniqueNames=[...new Set(names)];
+    return uniqueNames.length?uniqueNames:['Value'];
+  }
+  return ['Value'];
+}
+function dlOut(fmt){
+  if(!_oRows){toast('Nothing to download.','err');return;}
+  const content=fmt==='csv'?toCSV(_oRows):toTSV(_oRows);
+  const outFmt=detectFmt(_oRows)==='layout'?'map':'list';
+  const valueName=getOutputValueNames(_oRows).map(sanitizeFilePart).join('_');
+  const fileName=`${getDateStamp()}_${valueName}_${outFmt}.${fmt}`;
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type:fmt==='csv'?'text/csv':'text/tab-separated-values'}));a.download=fileName;a.click();
+}
+function loadTemplate(kind){
+  const isList=kind==='list';
+  const content=isList?LIST_TEMPLATE_CSV:MAP_TEMPLATE_CSV;
+  _iRows=normRows(parseText(content));
+  clearSelection();
+  renderTable(iTblWrap,_iRows,{editable:true});
+  onInputChanged(true);
+  toast(`${isList?'List':'Map'} template loaded into input.`,'ok');
+}
+async function downloadPlateMapImage(){
+  const pmcont=document.getElementById('pmcont');
+  if(!pmcont||!pmcont.innerHTML.trim()){
+    toast('No plate map to download.','err');
+    return;
+  }
+  try{
+    const canvas=await html2canvas(pmcont,{backgroundColor:'#fff',scale:2,useCORS:true});
+    const link=document.createElement('a');
+    link.href=canvas.toDataURL('image/png');
+    const dateStr=new Date().toISOString().slice(0,10);
+    link.download=`PlateMap_${dateStr}.png`;
+    link.click();
+    toast('Plate map downloaded!','ok');
+  }catch(err){
+    console.error('Download failed:',err);
+    toast('Failed to download plate map.','err');
+  }
+}
+let _tt;
+function toast(msg,type='info'){const el=document.getElementById('toast');el.textContent=msg;el.className='toast show '+(type||'info');clearTimeout(_tt);_tt=setTimeout(()=>el.className='toast',2600);}
+
+window.addEventListener('resize',()=>{if(_plateData&&_plateData.length)renderMap();});
+</script>
+</body>
+</html>
