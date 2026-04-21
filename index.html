@@ -34,6 +34,9 @@ header .author{font-size:.8rem;opacity:.7;font-weight:400;margin:2px 0 0 0;align
 .pact{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap}
 .bi{background:none;border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:.72rem;cursor:pointer;color:var(--text);transition:background .1s;white-space:nowrap}
 .bi:hover{background:var(--primary-lt)}
+.dlb{appearance:none;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:8px;padding:8px 11px;font-size:.76rem;font-weight:700;cursor:pointer;transition:background .15s,transform .1s,border-color .15s}
+.dlb:hover{background:var(--primary-lt);border-color:#b4cae5}
+.dlb:active{transform:scale(.98)}
 .pf{padding:5px 11px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;background:#f7f9fc;flex-shrink:0;min-height:30px;border-radius:0 0 var(--r) var(--r)}
 .upl{display:inline-flex;align-items:center;gap:3px;padding:3px 9px;border:1px solid var(--border);border-radius:4px;font-size:.74rem;cursor:pointer;background:var(--surface);transition:background .1s}
 .upl:hover{background:var(--primary-lt)}
@@ -211,7 +214,7 @@ header .author{font-size:.8rem;opacity:.7;font-weight:400;margin:2px 0 0 0;align
   <!-- Plate map -->
   <div class="pmaps hidden" id="pmSection">
     <h3>Plate Map
-      <button class="bi" onclick="downloadPlateMapImage()" style="margin-left:auto" title="Will not work in local version">Download Map</button>
+      <button class="dlb" onclick="downloadPlateMapImage()" style="margin-left:auto" title="Will not work in local version">Download Map</button>
     </h3>
     <div id="pmcont"></div>
     <div class="lgd" id="lgdCont"></div>
