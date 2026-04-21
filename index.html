@@ -13,7 +13,7 @@ header>div:first-child{flex:1}
 header h1{font-size:1.9rem;font-weight:700;margin:0}
 header p{font-size:.8rem;opacity:.7;margin:2px 0 10px 0}
 header .author{font-size:.8rem;opacity:.7;font-weight:400;margin:2px 0 0 0;align-self:flex-end}
-.wrap{max-width:1480px;margin:0 auto;padding:14px 14px 48px}
+.wrap{max-width:1480px;margin:0 auto;padding:14px 14px 60px}
 /* settings bar */
 .sbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:8px 14px;margin-bottom:12px;box-shadow:var(--sh)}
 .sbar label{display:flex;align-items:center;gap:6px;font-size:.8rem;font-weight:500;white-space:nowrap}
@@ -89,7 +89,7 @@ header .author{font-size:.8rem;opacity:.7;font-weight:400;margin:2px 0 0 0;align
 .toast.ok{background:#1a7f4b}
 .toast.err{background:#b01c1c}
 .toast.info{background:var(--primary)}
-.copyright{margin:14px 2px 0;color:var(--muted);font-size:.74rem;text-align:right}
+.copyright{position:fixed;bottom:0;left:0;width:100%;text-align:center;color:var(--muted);font-size:.74rem;padding:6px 0 8px;background:var(--bg);border-top:1px solid var(--border);z-index:100}
 .copyright a{color:var(--primary);text-decoration:none;font-weight:600}
 .copyright a:hover{text-decoration:underline}
 .hidden{display:none!important}
@@ -99,7 +99,7 @@ header .author{font-size:.8rem;opacity:.7;font-weight:400;margin:2px 0 0 0;align
 <body>
 <header>
   <div>
-    <h1>Plate Map ↔ List Converter v1.2</h1>
+    <h1>Plate Map ↔ List Converter v1.2</h1>  
     <p>Bidirectional conversion between microplate grid map and well-list format — 96 / 384 / 1536-well</p>
   </div>
   <div class="author">By ILYH</div>
@@ -217,11 +217,14 @@ header .author{font-size:.8rem;opacity:.7;font-weight:400;margin:2px 0 0 0;align
     <div class="lgd" id="lgdCont"></div>
   </div>
 
-  <div class="copyright">Copyright © 2026 Lin. All rights reserved.</div>
+  <div class="copyright">
+    <div style="margin-bottom:3px">The code has been verified and will not store or send any data. You can also right-click to save the <a href="https://raw.githubusercontent.com/linda9617/plate-map-list-converter/main/index.html" download="Plate_vs_List.html">local version</a> to use.</div>
+    Copyright © 2026 Lin. All rights reserved.
+  </div>
 </div><!-- /wrap -->
 
 <div class="toast" id="toast"></div>
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="html2canvas.min.js"></script>
 <script>
 // ══════════════════════════════════════════
 // PLATE DEFINITIONS
