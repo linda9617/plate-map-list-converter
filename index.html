@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Plate Map ↔ List Converter v1.2</title>
+<title>Plate Map ↔ List Converter v1.3</title>
 <style>
 :root{--bg:#f0f4f8;--surface:#fff;--border:#d0d7e3;--primary:#1e4d8c;--primary-lt:#e8eef7;--primary-dk:#163a6b;--text:#1a2b3c;--muted:#6b7a8d;--r:8px;--sh:0 2px 8px rgba(0,0,0,.08)}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -99,7 +99,7 @@ header .author{font-size:.8rem;opacity:.7;font-weight:400;margin:2px 0 0 0;align
 <body>
 <header>
   <div>
-    <h1>Plate Map ↔ List Converter v1.2</h1>  
+    <h1>Plate Map ↔ List Converter v1.3</h1>  
     <p>Bidirectional conversion between microplate grid map and well-list format — 96 / 384 / 1536-well</p>
   </div>
   <div class="author">By ILYH</div>
@@ -211,7 +211,7 @@ header .author{font-size:.8rem;opacity:.7;font-weight:400;margin:2px 0 0 0;align
   <!-- Plate map -->
   <div class="pmaps hidden" id="pmSection">
     <h3>Plate Map
-      <button class="bi" onclick="downloadPlateMapImage()" style="margin-left:auto">Download Map</button>
+      <button class="bi" onclick="downloadPlateMapImage()" style="margin-left:auto" title="Will not work in local version">Download Map</button>
     </h3>
     <div id="pmcont"></div>
     <div class="lgd" id="lgdCont"></div>
