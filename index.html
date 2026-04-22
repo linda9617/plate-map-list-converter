@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Plate Map ↔ List Converter v1.3</title>
+<title>Plate Map ↔ List Converter v1.4 by ILYH</title>
 <style>
 :root{--bg:#f0f4f8;--surface:#fff;--border:#d0d7e3;--primary:#1e4d8c;--primary-lt:#e8eef7;--primary-dk:#163a6b;--text:#1a2b3c;--muted:#6b7a8d;--r:8px;--sh:0 2px 8px rgba(0,0,0,.08)}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -18,6 +18,10 @@ header .author{font-size:.8rem;opacity:.7;font-weight:400;margin:2px 0 0 0;align
 .sbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:8px 14px;margin-bottom:12px;box-shadow:var(--sh)}
 .sbar label{display:flex;align-items:center;gap:6px;font-size:.8rem;font-weight:500;white-space:nowrap}
 .sbar select,.sbar input[type=text]{border:1px solid var(--border);border-radius:4px;padding:3px 7px;font-size:.8rem;color:var(--text);background:var(--surface)}
+.sbar-right{margin-left:auto;display:flex;align-items:flex-start;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.sbar-right .vcw{padding:0;background:transparent;border:none;border-radius:0;font-size:inherit;text-align:left}
+.sbar-right .inline-ctl{display:flex;align-items:center;gap:6px;font-size:.8rem;font-weight:500;white-space:nowrap}
+.sbar-right .inline-ctl select{border:1px solid var(--border);border-radius:4px;padding:3px 7px;font-size:.8rem;color:var(--text);background:var(--surface);min-width:128px}
 /* workspace */
 .ws{display:grid;grid-template-columns:1fr 82px 1fr;gap:10px;align-items:start}
 /* panel */
@@ -91,6 +95,7 @@ header .author{font-size:.8rem;opacity:.7;font-weight:400;margin:2px 0 0 0;align
 .toast.show{opacity:1;transform:translateY(0)}
 .toast.ok{background:#1a7f4b}
 .toast.err{background:#b01c1c}
+.toast.warn{background:#b7791f}
 .toast.info{background:var(--primary)}
 .copyright{position:fixed;bottom:0;left:0;width:100%;text-align:center;color:var(--muted);font-size:.74rem;padding:6px 0 8px;background:var(--bg);border-top:1px solid var(--border);z-index:100}
 .copyright a{color:var(--primary);text-decoration:none;font-weight:600}
@@ -102,7 +107,7 @@ header .author{font-size:.8rem;opacity:.7;font-weight:400;margin:2px 0 0 0;align
 <body>
 <header>
   <div>
-    <h1>Plate Map ↔ List Converter v1.3</h1>  
+    <h1>Plate Map ↔ List Converter v1.4</h1>  
     <p>Bidirectional conversion between microplate grid map and well-list format — 96 / 384 / 1536-well</p>
   </div>
   <div class="author">By ILYH</div>
@@ -142,6 +147,16 @@ header .author{font-size:.8rem;opacity:.7;font-weight:400;margin:2px 0 0 0;align
         <option value="0">Fill 0</option>
       </select>
     </label>
+
+    <div class="sbar-right">
+      <div class="vcw hidden" id="vcWrap">
+        <div class="inline-ctl"><span>Value</span><select id="vcSel"></select></div>
+      </div>
+      <div class="vcw hidden" id="pcWrap">
+        <div class="inline-ctl"><span>Plate name</span><select id="pcSel" onchange="onPlateNameChange()"></select></div>
+        <div id="pcHint" class="hidden" style="margin-top:4px;font-size:.74rem;color:#b7791f;font-weight:600">当前实际只有 1 个 plate</div>
+      </div>
+    </div>
   </div>
 
   <!-- Workspace -->
@@ -176,11 +191,6 @@ header .author{font-size:.8rem;opacity:.7;font-weight:400;margin:2px 0 0 0;align
     <!-- Centre -->
     <div class="cc">
       <button class="cvb" onclick="convert()">Convert<br>⇄</button>
-      <div class="vcw hidden" id="vcWrap">
-        <label>Value
-          <select id="vcSel"></select>
-        </label>
-      </div>
       <div class="dbadge" id="dBadge"></div>
       <div class="tmpl-actions">
         <button class="bi tmpl-btn" onclick="loadTemplate('list')">List-template</button>
@@ -221,7 +231,7 @@ header .author{font-size:.8rem;opacity:.7;font-weight:400;margin:2px 0 0 0;align
   </div>
 
   <div class="copyright">
-    <div style="margin-bottom:3px">This web tool will not store or send any data you uploaded. Right-click to save the <a href="https://raw.githubusercontent.com/linda9617/plate-map-list-converter/main/index.html" download="Plate_vs_List.html">local version</a>.</div>
+    <div style="margin-bottom:3px">This web tool will not store or send any data you uploaded. You can also right-click to save the <a href="https://raw.githubusercontent.com/linda9617/plate-map-list-converter/main/index.html" download="Plate_vs_List.html">local version</a> to use.</div>
     Copyright © 2026 Lin. All rights reserved.
   </div>
 </div><!-- /wrap -->
@@ -660,7 +670,11 @@ O,,,,,Target1,Target2,Target3,Target4,Target5,Target6,Target7,Target8,,,Target11
 P,,,,,,,,,,,,,,,,,,,,,,,,`;
 
 function parseWellCode(v){
-  const m=((v||'').trim().toUpperCase()).match(/^([A-Z]{1,2})0*(\d+)$/);
+  const norm=String(v||'')
+    .trim()
+    .toUpperCase()
+    .replace(/[\s_-]+/g,'');
+  const m=norm.match(/^([A-Z]{1,2})0*(\d+)$/);
   if(!m)return null;
   const col=parseInt(m[2],10);
   if(!Number.isFinite(col)||col<1)return null;
@@ -673,6 +687,48 @@ function normalizeWellCode(v){
 }
 
 function isWellLike(v){return parseWellCode(v)!==null;}
+
+function normHdrToken(v){
+  return String(v||'').trim().toLowerCase().replace(/[^a-z0-9]/g,'');
+}
+
+function isWellHeaderName(v){
+  const t=normHdrToken(v);
+  return t==='well'||t==='wellid'||t==='wellposition'||t==='wellpos'
+    ||t==='wellname'||t==='wellbarcode'||t==='wellcode'
+    ||t==='sourcewell'||t==='sourcewellposition'||t==='sourcewellpos'
+    ||t==='sourcewellid'||t==='sourcewellname'||t==='sourcewellbarcode'||t==='sourcewellcode'
+    ||t==='destinationwell'||t==='destinationwellposition'||t==='destinationwellpos'
+    ||t==='destinationwellid'||t==='destinationwellname'||t==='destinationwellbarcode'||t==='destinationwellcode'
+    ||t==='destwell'||t==='destwellposition'||t==='destwellpos'
+    ||t==='destwellid'||t==='destwellname'||t==='destwellbarcode'||t==='destwellcode';
+}
+
+function isPlateHeaderName(v){
+  const t=normHdrToken(v);
+  return t==='plate'||t==='plateid'||t==='platename'
+    ||t==='platebarcode'||t==='platecode'
+    ||t==='sourceplate'||t==='sourceplatename'||t==='sourceplateid'
+    ||t==='sourceplatebarcode'||t==='sourceplatecode'
+    ||t==='destinationplate'||t==='destinationplatename'||t==='destinationplateid'
+    ||t==='destinationplatebarcode'||t==='destinationplatecode'
+    ||t==='destplate'||t==='destplatename'||t==='destplateid'
+    ||t==='destplatebarcode'||t==='destplatecode';
+}
+
+function inferWellColumnIndex(rows,startRow,nCols){
+  const from=Math.max(0,startRow||0);
+  const sample=rows.slice(from,Math.min(rows.length,from+20));
+  let bestIdx=-1,bestCount=0;
+  for(let ci=0;ci<nCols;ci++){
+    let count=0;
+    for(const r of sample){
+      if(isWellLike((r&&r[ci])||'')) count++;
+    }
+    if(count>bestCount){bestCount=count;bestIdx=ci;}
+  }
+  return bestCount>=2?bestIdx:-1;
+}
 
 function bestPlateBySize(nRows,nCols){
   const opts=['96','384','1536'];
@@ -689,7 +745,7 @@ function parseListRows(rows){
   if(!rows||rows.length===0)return {header:[],data:[],hasHeader:false,wellIdx:-1,plateIdx:-1};
   const nCols=Math.max(1,...rows.map(r=>r.length));
   const first=rows[0]||[];
-  const explicitHeader=first.some(v=>/^(well|plate)$/i.test((v||'').trim()));
+  const explicitHeader=first.some(v=>isWellHeaderName(v)||isPlateHeaderName(v));
   let hasHeader=explicitHeader;
   if(!hasHeader){
     const sample=rows.slice(0,Math.min(10,rows.length));
@@ -708,8 +764,12 @@ function parseListRows(rows){
     data=rows;
   }
 
-  const wellIdxRaw=header.findIndex(v=>/^well$/i.test((v||'').trim()));
-  const plateIdx=header.findIndex(v=>/^plate$/i.test((v||'').trim()));
+  let wellIdxRaw=header.findIndex(v=>isWellHeaderName(v));
+  if(wellIdxRaw===-1){
+    const inferred=inferWellColumnIndex(rows,hasHeader?1:0,nCols);
+    if(inferred!==-1) wellIdxRaw=inferred;
+  }
+  const plateIdx=header.findIndex(v=>isPlateHeaderName(v));
   const wellIdx=wellIdxRaw!==-1?wellIdxRaw:0;
   return {header,data,hasHeader,wellIdx,plateIdx};
 }
@@ -749,12 +809,28 @@ function getValueColumnName(){
   return input&&input.value?input.value:'Value';
 }
 
+function getPlateNameColIdx(rows){
+  const parsed=parseListRows(rows);
+  const wrap=document.getElementById('pcWrap');
+  const sel=document.getElementById('pcSel');
+  if(wrap&&sel&&!wrap.classList.contains('hidden')){
+    if(sel.value==='none') return -1;
+    if(sel.value!=='auto'){
+      const idx=parseInt(sel.value,10);
+      if(Number.isInteger(idx)&&idx>=0&&idx<parsed.header.length) return idx;
+    }
+  }
+  return parsed.plateIdx;
+}
+
 function getValueColumns(rows){
   const parsed=parseListRows(rows);
+  const plateIdx=getPlateNameColIdx(rows);
   const cols=[];
   for(let i=0;i<parsed.header.length;i++){
-    const v=(parsed.header[i]||'').trim().toLowerCase();
-    if(v!=='well'&&v!=='plate'&&parsed.header[i]!=='')cols.push({i,name:parsed.header[i]||`Col ${i+1}`});
+    const name=(parsed.header[i]||'').trim();
+    if(i===parsed.wellIdx||i===plateIdx) continue;
+    if(name!=='') cols.push({i,name:name||`Col ${i+1}`});
   }
   return cols;
 }
@@ -764,11 +840,69 @@ function getValueColumns(rows){
 // ══════════════════════════════════════════
 let _iRows=null,_oRows=null,_plateData=null;
 let _selCells=new Set(),_selRows=new Set(),_selCols=new Set(),_anchorCell=null,_isDragging=false;
+let _lastConvertWarnings=null;
+let _undoStack=[],_redoStack=[];
+const _historyMax=120;
+let _cellEditSession=false,_cellEditSessionTimer=null;
 
 function normRows(rows){
   if(!rows||rows.length===0)return [['']];
   const nCols=Math.max(1,...rows.map(r=>r.length));
   return rows.map(r=>{const out=[...r];while(out.length<nCols)out.push('');return out;});
+}
+
+function cloneRows(rows){
+  return normRows(rows).map(r=>[...r]);
+}
+
+function rowsEqual(a,b){
+  if(!a||!b) return false;
+  if(a.length!==b.length) return false;
+  for(let r=0;r<a.length;r++){
+    if(a[r].length!==b[r].length) return false;
+    for(let c=0;c<a[r].length;c++) if(String(a[r][c])!==String(b[r][c])) return false;
+  }
+  return true;
+}
+
+function pushUndoSnapshot(){
+  if(!_iRows) return;
+  const snap=cloneRows(_iRows);
+  const last=_undoStack.length?_undoStack[_undoStack.length-1]:null;
+  if(last&&rowsEqual(last,snap)) return;
+  _undoStack.push(snap);
+  if(_undoStack.length>_historyMax) _undoStack.shift();
+  _redoStack=[];
+}
+
+function applyHistorySnapshot(snap){
+  _iRows=cloneRows(snap);
+  clearSelection();
+  renderTable(iTblWrap,_iRows,{editable:true});
+  onInputChanged(true);
+}
+
+function handleUndoRedoHotkey(e){
+  if(!(e.ctrlKey||e.metaKey)) return false;
+  const k=e.key.toLowerCase();
+  const isUndo=(k==='z'&&!e.shiftKey);
+  const isRedo=(k==='y')||(k==='z'&&e.shiftKey);
+  if(!isUndo&&!isRedo) return false;
+  e.preventDefault();
+
+  if(isUndo){
+    if(!_undoStack.length){toast('Nothing to undo.','info');return true;}
+    if(_iRows) _redoStack.push(cloneRows(_iRows));
+    const prev=_undoStack.pop();
+    applyHistorySnapshot(prev);
+    return true;
+  }
+
+  if(!_redoStack.length){toast('Nothing to redo.','info');return true;}
+  if(_iRows) _undoStack.push(cloneRows(_iRows));
+  const next=_redoStack.pop();
+  applyHistorySnapshot(next);
+  return true;
 }
 
 function clearSelection(){
@@ -847,6 +981,7 @@ function handleRowSelect(e){
   const rn=e.currentTarget,r=+rn.dataset.r,multi=e.ctrlKey||e.metaKey;
   _selCells.clear();_selCols.clear();
   if(multi){if(_selRows.has(r))_selRows.delete(r);else _selRows.add(r);}else{_selRows.clear();_selRows.add(r);}
+  iTblWrap.focus({preventScroll:true});
   applySelectionStyles(rn.closest('table'));
 }
 
@@ -855,6 +990,7 @@ function handleColSelect(e){
   const th=e.currentTarget,c=+th.dataset.c,multi=e.ctrlKey||e.metaKey;
   _selCells.clear();_selRows.clear();
   if(multi){if(_selCols.has(c))_selCols.delete(c);else _selCols.add(c);}else{_selCols.clear();_selCols.add(c);}
+  iTblWrap.focus({preventScroll:true});
   applySelectionStyles(th.closest('table'));
 }
 
@@ -872,7 +1008,7 @@ function detectFmt(rows){
   if(!rows||rows.length<1)return 'unknown';
   const h=rows[0]||[];
   if(h.slice(1).filter(v=>/^\d+$/.test((v||'').trim())).length>=3)return 'layout';
-  if(h.some(v=>/^well$/i.test((v||'').trim())))return 'list';
+  if(h.some(v=>isWellHeaderName(v)))return 'list';
 
   const sample=rows.slice(0,Math.min(rows.length,12));
   const sampleNoFirst=rows.slice(1,Math.min(rows.length,12));
@@ -896,9 +1032,19 @@ function autoDetectPlate(rows){
   if(fmt==='layout'){
     for(const row of rows){const v=(row[0]||'').trim().toUpperCase();if(/^[A-Z]{1,2}$/.test(v)){const ri=ALL_ROWS.indexOf(v);if(ri>maxRowIdx)maxRowIdx=ri;}for(const cell of row.slice(1)){const n=parseInt(cell);if(!isNaN(n))maxCol=Math.max(maxCol,n);}}
   }else if(fmt==='list'){
-    const h=rows[0],wi=h.findIndex(v=>/^well$/i.test((v||'').trim()));
-    if(wi!==-1){for(let i=1;i<rows.length;i++){const parsed=parseWellCode(rows[i][wi]||'');if(parsed){const ri=ALL_ROWS.indexOf(parsed.row);if(ri>maxRowIdx)maxRowIdx=ri;maxCol=Math.max(maxCol,parsed.col);}}}
-    else{for(let i=0;i<rows.length;i++){const parsed=parseWellCode(rows[i][0]||'');if(parsed){const ri=ALL_ROWS.indexOf(parsed.row);if(ri>maxRowIdx)maxRowIdx=ri;maxCol=Math.max(maxCol,parsed.col);}}}
+    const parsedList=parseListRows(rows);
+    const wi=parsedList.wellIdx;
+    const start=parsedList.hasHeader?1:0;
+    if(wi!==-1){
+      for(let i=start;i<rows.length;i++){
+        const parsed=parseWellCode((rows[i]&&rows[i][wi])||'');
+        if(parsed){
+          const ri=ALL_ROWS.indexOf(parsed.row);
+          if(ri>maxRowIdx)maxRowIdx=ri;
+          maxCol=Math.max(maxCol,parsed.col);
+        }
+      }
+    }
   }
   if(maxRowIdx===-1&&maxCol===0){
     const nRows=rows.length,nCols=Math.max(...rows.map(r=>r.length),1);
@@ -958,19 +1104,15 @@ function renderTable(wrap,rows,opts={}){
 function cellKD(e){
   const td=e.currentTarget,ri=+td.dataset.r,ci=+td.dataset.c,tbl=td.closest('table');
   const q=(r,c)=>tbl.querySelector(`td[data-r="${r}"][data-c="${c}"]`);
+  if(handleUndoRedoHotkey(e)){e.stopPropagation();return;}
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='a'){
     e.preventDefault();
     selectAllCells();
     applySelectionStyles(tbl);
     return;
   }
-  if(e.key==='Delete'||e.key==='Backspace'){
-    e.preventDefault();
-    if(_selRows.size>0)deleteSelectedRows();
-    else if(_selCols.size>0)deleteSelectedCols();
-    else if(_selCells.size>0)deleteSelectedCells();
-    return;
-  }
+  if(handleClipboardHotkey(e)){e.stopPropagation();return;}
+  if(handleDeleteSelectionHotkey(e)){e.stopPropagation();return;}
   if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();const n=q(ri+1,ci);if(n)n.focus();}
   else if(e.key==='Tab'){e.preventDefault();if(e.shiftKey){const p=ci>0?q(ri,ci-1):q(ri-1,0);if(p)p.focus();}else{const n=q(ri,ci+1)||q(ri+1,0);if(n)n.focus();}}
   else if(e.key==='ArrowDown'){const n=q(ri+1,ci);if(n){e.preventDefault();n.focus();}}
@@ -981,9 +1123,166 @@ function cellKD(e){
 function cursorAtEnd(el){const s=window.getSelection();return!s.rangeCount||s.getRangeAt(0).endOffset>=el.textContent.length;}
 function cursorAtStart(el){const s=window.getSelection();return!s.rangeCount||s.getRangeAt(0).startOffset===0;}
 
+function handleDeleteSelectionHotkey(e){
+  if(!(e.key==='Delete'||e.key==='Backspace')) return false;
+  if(!(_selRows.size>0||_selCols.size>0||_selCells.size>0)) return false;
+  e.preventDefault();
+  if(_selRows.size>0)deleteSelectedRows();
+  else if(_selCols.size>0)deleteSelectedCols();
+  else deleteSelectedCells();
+  return true;
+}
+
+function getActiveEditableCell(){
+  const el=document.activeElement;
+  return el&&el.matches&&el.matches('#iTblWrap td.dc[contenteditable="true"]')?el:null;
+}
+
+function hasInlineTextSelectionInCell(){
+  const active=getActiveEditableCell();
+  const sel=window.getSelection();
+  return !!(active&&sel&&sel.rangeCount>0&&!sel.isCollapsed&&active.contains(sel.anchorNode)&&active.contains(sel.focusNode));
+}
+
+function getSelectionBounds(){
+  if(_selRows.size>0){
+    const rows=[..._selRows].sort((a,b)=>a-b);
+    return {sr:rows[0],er:rows[rows.length-1],sc:0,ec:Math.max(0,(_iRows?.[0]?.length||1)-1)};
+  }
+  if(_selCols.size>0){
+    const cols=[..._selCols].sort((a,b)=>a-b);
+    return {sr:0,er:Math.max(0,(_iRows?.length||1)-1),sc:cols[0],ec:cols[cols.length-1]};
+  }
+  if(_selCells.size>0){
+    const pts=[..._selCells].map(key=>key.split(',').map(Number));
+    return {
+      sr:Math.min(...pts.map(p=>p[0])),
+      er:Math.max(...pts.map(p=>p[0])),
+      sc:Math.min(...pts.map(p=>p[1])),
+      ec:Math.max(...pts.map(p=>p[1]))
+    };
+  }
+  const active=getActiveEditableCell();
+  if(active){
+    const sr=+active.dataset.r,sc=+active.dataset.c;
+    return {sr,er:sr,sc,ec:sc};
+  }
+  return null;
+}
+
+function getSelectionMatrix(){
+  _iRows=normRows(_iRows);
+  if(_selRows.size>0){
+    const rows=[..._selRows].sort((a,b)=>a-b);
+    return rows.map(r=>[...(_iRows[r]||[])]);
+  }
+  if(_selCols.size>0){
+    const cols=[..._selCols].sort((a,b)=>a-b);
+    return _iRows.map(row=>cols.map(c=>(row&&c<row.length)?row[c]:''));
+  }
+  if(_selCells.size>0){
+    const b=getSelectionBounds();
+    const out=[];
+    for(let r=b.sr;r<=b.er;r++){
+      const row=[];
+      for(let c=b.sc;c<=b.ec;c++) row.push(_selCells.has(`${r},${c}`)?((_iRows[r]&&c<_iRows[r].length)?_iRows[r][c]:''):'');
+      out.push(row);
+    }
+    return out;
+  }
+  const active=getActiveEditableCell();
+  if(active) return [[active.textContent.trim()]];
+  return null;
+}
+
+function copyTextToClipboard(text){
+  // Prefer synchronous copy in keyboard handlers to avoid race/permission issues.
+  if(fallbackCopyText(text)) return true;
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).catch(()=>{});
+    return true;
+  }
+  return false;
+}
+
+function fallbackCopyText(text){
+  try{
+    const ta=document.createElement('textarea');
+    ta.value=text;
+    ta.setAttribute('readonly','readonly');
+    ta.style.position='fixed';
+    ta.style.opacity='0';
+    ta.style.left='-9999px';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok=document.execCommand('copy');
+    document.body.removeChild(ta);
+    return !!ok;
+  }catch(_err){
+    return false;
+  }
+}
+
+function handleClipboardHotkey(e){
+  if(!(e.ctrlKey||e.metaKey)) return false;
+  const key=e.key.toLowerCase();
+  if(key!=='c'&&key!=='x') return false;
+  // Keep native clipboard behavior only when the user selected text inside a cell.
+  if(hasInlineTextSelectionInCell()) return false;
+  const matrix=getSelectionMatrix();
+  if(!matrix||!matrix.length) return false;
+  e.preventDefault();
+  const copied=copyTextToClipboard(toTSV(matrix));
+  if(!copied){
+    toast('Clipboard copy failed. Please try Ctrl+C then Delete.','err');
+    return true;
+  }
+  if(key==='x'){
+    pushUndoSnapshot();
+    if(_selRows.size>0)deleteSelectedRows();
+    else if(_selCols.size>0)deleteSelectedCols();
+    else if(_selCells.size>0)deleteSelectedCells();
+    else{
+      const active=getActiveEditableCell();
+      if(active){
+        const ri=+active.dataset.r,ci=+active.dataset.c;
+        active.textContent='';
+        if(_iRows&&ri<_iRows.length){while(_iRows[ri].length<=ci)_iRows[ri].push('');_iRows[ri][ci]='';}
+        onInputChanged(false);
+      }
+    }
+  }
+  return true;
+}
+
+function getPasteStartPosition(){
+  const active=getActiveEditableCell();
+  if(active) return {sr:+active.dataset.r,sc:+active.dataset.c};
+  const b=getSelectionBounds();
+  if(b) return {sr:b.sr,sc:b.sc};
+  return {sr:0,sc:0};
+}
+
+function hasAnyNonEmptyData(rows){
+  if(!rows||!rows.length) return false;
+  for(const row of rows){
+    for(const cell of (row||[])){
+      if(String(cell||'').trim()!=='') return true;
+    }
+  }
+  return false;
+}
+
 let _ciTimer;
 function cellIN(e){
   const td=e.currentTarget,ri=+td.dataset.r,ci=+td.dataset.c;
+  if(!_cellEditSession){
+    pushUndoSnapshot();
+    _cellEditSession=true;
+  }
+  clearTimeout(_cellEditSessionTimer);
+  _cellEditSessionTimer=setTimeout(()=>{_cellEditSession=false;},700);
   if(_iRows&&ri<_iRows.length){while(_iRows[ri].length<=ci)_iRows[ri].push('');_iRows[ri][ci]=td.textContent.trim();}
   clearTimeout(_ciTimer);_ciTimer=setTimeout(()=>onInputChanged(false),350);
 }
@@ -1000,14 +1299,32 @@ document.addEventListener('mouseup',()=>{_isDragging=false;});
 // ══════════════════════════════════════════
 const iTblWrap=document.getElementById('iTblWrap');
 
+iTblWrap.addEventListener('keydown',e=>{
+  if(handleUndoRedoHotkey(e)) return;
+  if(handleClipboardHotkey(e)) return;
+  // Row/column headers are not editable cells; handle delete at wrapper level too.
+  handleDeleteSelectionHotkey(e);
+});
+
 iTblWrap.addEventListener('paste',e=>{
   e.preventDefault();
   const text=e.clipboardData.getData('text/plain');if(!text)return;
   const pasted=parseText(text);
   const focused=iTblWrap.querySelector('[contenteditable]:focus');
-  const sr=focused?+focused.dataset.r:0,sc=focused?+focused.dataset.c:0;
-  if(!_iRows||!focused){_iRows=normRows(pasted);}
+  const pos=getPasteStartPosition();
+  const sr=focused?+focused.dataset.r:pos.sr,sc=focused?+focused.dataset.c:pos.sc;
+  const noTargetSelection=!focused&&!(_selRows.size||_selCols.size||_selCells.size);
+  const willReplaceAll=!_iRows||noTargetSelection;
+  if(willReplaceAll){
+    if(_iRows&&hasAnyNonEmptyData(_iRows)){
+      const ok=confirm('Input already has data. Overwrite all existing data?');
+      if(!ok) return;
+    }
+    if(_iRows&&hasAnyNonEmptyData(_iRows)) pushUndoSnapshot();
+    _iRows=normRows(pasted);
+  }
   else{
+    pushUndoSnapshot();
     _iRows=normRows(_iRows);
     const nr=sr+pasted.length,nc=sc+Math.max(...pasted.map(r=>r.length));
     while(_iRows.length<nr)_iRows.push([]);
@@ -1029,7 +1346,7 @@ function readFile(f){const rd=new FileReader();rd.onload=ev=>{_iRows=normRows(pa
 // INPUT CHANGE
 // ══════════════════════════════════════════
 function onInputChanged(autoPlate=true){
-  if(!_iRows||_iRows.length===0){setBadge('i','unknown');document.getElementById('iInf').textContent='';document.getElementById('iPlateBadge').className='badge unknown hidden';document.getElementById('vcWrap').classList.add('hidden');return;}
+  if(!_iRows||_iRows.length===0){setBadge('i','unknown');document.getElementById('iInf').textContent='';document.getElementById('iPlateBadge').className='badge unknown hidden';document.getElementById('vcWrap').classList.add('hidden');document.getElementById('pcWrap').classList.add('hidden');document.getElementById('pcHint').classList.add('hidden');return;}
   const fmt=detectFmt(_iRows);
   setBadge('i',fmt);
   const nCols=Math.max(..._iRows.map(r=>r.length));
@@ -1040,12 +1357,15 @@ function onInputChanged(autoPlate=true){
     pb.className=`badge p${pt}`;pb.textContent=`${pt}-well`;pb.classList.remove('hidden');
     if(document.getElementById('sPlate').value==='auto'||true){/* always show detected */}
   }
+  updatePcSel(_iRows);
   updateVcSel(_iRows);
+  updatePlateNameHint(_iRows);
 }
 function onSettingChange(){if(_iRows)onInputChanged(true);}
 
 function addRow(){
   _iRows=normRows(_iRows);
+  pushUndoSnapshot();
   _iRows.push(Array(_iRows[0].length).fill(''));
   clearSelection();
   renderTable(iTblWrap,_iRows,{editable:true});
@@ -1054,6 +1374,7 @@ function addRow(){
 
 function addCol(){
   _iRows=normRows(_iRows);
+  pushUndoSnapshot();
   for(const row of _iRows)row.push('');
   clearSelection();
   renderTable(iTblWrap,_iRows,{editable:true});
@@ -1063,6 +1384,7 @@ function addCol(){
 function deleteSelectedCells(){
   _iRows=normRows(_iRows);
   if(!_selCells.size){toast('No cells selected.','info');return;}
+  pushUndoSnapshot();
   for(const key of _selCells){
     const [r,c]=key.split(',').map(Number);
     if(_iRows[r]&&c<_iRows[r].length)_iRows[r][c]='';
@@ -1074,6 +1396,7 @@ function deleteSelectedCells(){
 function deleteSelectedRows(){
   _iRows=normRows(_iRows);
   if(!_selRows.size){toast('No rows selected.','info');return;}
+  pushUndoSnapshot();
   const idx=[..._selRows].sort((a,b)=>b-a);
   const nCols=_iRows[0].length;
   for(const r of idx)if(r>=0&&r<_iRows.length)_iRows.splice(r,1);
@@ -1089,6 +1412,7 @@ function deleteSelectedCols(){
   if(!_selCols.size){toast('No columns selected.','info');return;}
   const nCols=_iRows[0].length;
   if(_selCols.size>=nCols){toast('Cannot delete all columns.','err');return;}
+  pushUndoSnapshot();
   const idx=[..._selCols].sort((a,b)=>b-a);
   for(const row of _iRows){for(const c of idx)if(c>=0&&c<row.length)row.splice(c,1);} 
   _iRows=normRows(_iRows);
@@ -1217,12 +1541,56 @@ function listToLayout(rows,pt,vi){
   const fmt='unpadded';
   const parsed=parseListRows(rows);
   const h=parsed.header,data=parsed.data;
-  const wellIdx=parsed.wellIdx,pidx=parsed.plateIdx;
+  const wellIdx=parsed.wellIdx,pidx=getPlateNameColIdx(rows);
   const valueCols=getValueColumns(rows);
   const fallbackIdx=h.length>1?1:0;
   const selectedIdxs=(Array.isArray(vi)?vi:[vi])
     .filter(idx=>idx!=null&&idx>=0&&idx<h.length);
   const valueIdxs=(selectedIdxs.length?selectedIdxs:(valueCols.length?[valueCols[0].i]:[fallbackIdx]));
+
+  // Count rows whose well cannot be used for the selected plate; they are ignored.
+  // Also detect duplicate plate+well keys that will overwrite previous values.
+  const ignored={invalid:0,outOfRange:0,examples:[]};
+  const seenKeys=new Set();
+  const dupKeys=new Set();
+  for(const row of data){
+    const raw=((row&&row[wellIdx])||'').trim();
+    if(!raw)continue;
+    const w=parseWellCode(raw);
+    if(!w){
+      ignored.invalid++;
+      if(ignored.examples.length<4)ignored.examples.push(raw);
+      continue;
+    }
+    if(!rlSet.has(w.row)||w.col<1||w.col>nCols){
+      ignored.outOfRange++;
+      if(ignored.examples.length<4)ignored.examples.push(`${w.row}${w.col}`);
+      continue;
+    }
+    const pn=(pidx!==-1)?String((row&&row[pidx])||'').trim()||'Plate':'Plate';
+    const wk=`${w.row}${w.col}`;
+    const key=`${pn}\u0000${wk}`;
+    if(seenKeys.has(key)){
+      dupKeys.add(key);
+    }else{
+      seenKeys.add(key);
+    }
+  }
+  const duplicateWells=[...dupKeys]
+    .map(k=>{
+      const parts=k.split('\u0000');
+      return pidx!==-1?`${parts[0]}:${parts[1]}`:parts[1];
+    })
+    .sort((a,b)=>a.localeCompare(b,undefined,{numeric:true,sensitivity:'base'}));
+
+  _lastConvertWarnings=(ignored.invalid||ignored.outOfRange||duplicateWells.length)
+    ? {
+        invalidWells:ignored.invalid,
+        outOfRangeWells:ignored.outOfRange,
+        duplicateWells,
+        examples:ignored.examples
+      }
+    : null;
 
   function buildForValue(valIdx){
     const valueTitle=(h[valIdx]||getValueColumnName()).trim()||'Value';
@@ -1277,6 +1645,48 @@ function updateVcSel(rows){
   sel.value='all';
   wrap.classList.remove('hidden');
 }
+
+function updatePcSel(rows){
+  const dir=document.getElementById('sDir').value,fmt=detectFmt(rows);
+  const isListIn=(dir==='l2L')||(dir==='auto'&&fmt==='list');
+  const wrap=document.getElementById('pcWrap');
+  const sel=document.getElementById('pcSel');
+  if(!isListIn||!rows||rows.length<1){
+    wrap.classList.add('hidden');
+    document.getElementById('pcHint').classList.add('hidden');
+    if(sel) sel.dataset.userSet='';
+    return;
+  }
+  const parsed=parseListRows(rows);
+  const options=parsed.header.map((name,i)=>{
+    const label=String(name||'').trim()||`Col ${i+1}`;
+    return `<option value="${i}">${escHtml(label)}</option>`;
+  }).join('');
+  const prev=sel.value;
+  const keepUser=sel.dataset.userSet==='1';
+
+  sel.innerHTML=`<option value="auto">Auto-detect</option><option value="none">None (single plate)</option>${options}`;
+  if(keepUser&&[...sel.options].some(o=>o.value===prev)){
+    sel.value=prev;
+  }else if(parsed.plateIdx!==-1){
+    sel.value=String(parsed.plateIdx);
+  }else{
+    sel.value='none';
+  }
+  wrap.classList.remove('hidden');
+}
+
+function updatePlateNameHint(rows){
+  const hint=document.getElementById('pcHint');
+  if(hint) hint.classList.add('hidden');
+}
+
+function onPlateNameChange(){
+  const sel=document.getElementById('pcSel');
+  if(sel) sel.dataset.userSet='1';
+  if(_iRows) onInputChanged(false);
+}
+
 function getValColIdx(rows){
   const sel=document.getElementById('vcSel'),wrap=document.getElementById('vcWrap');
   const cols=getValueColumns(rows);
@@ -1297,6 +1707,7 @@ function convert(){
   const dirSel=document.getElementById('sDir').value,fmt=detectFmt(_iRows);
   let dir=dirSel==='auto'?(fmt==='layout'?'L2l':fmt==='list'?'l2L':null):dirSel;
   if(!dir){toast('Cannot auto-detect format — select direction manually.','err');return;}
+  _lastConvertWarnings=null;
   let out;
   try{
     if(dir==='L2l'){out=layoutToList(_iRows,pt);setBadge('i','layout');setBadge('o','list');document.getElementById('dBadge').textContent='Map → List';}
@@ -1306,7 +1717,30 @@ function convert(){
   renderTable(document.getElementById('oTblWrap'),_oRows,{editable:false,cls:'out-tbl'});
   const oi=document.getElementById('oInf');
   oi.textContent=dir==='L2l'?`${out.length-1} well entries`:`${PLATE[pt].rows} rows × ${PLATE[pt].cols} cols`;
+  if(dir==='l2L'&&_lastConvertWarnings){
+    const warn=_lastConvertWarnings;
+    const ignoredPieces=[];
+    const dupPieces=[];
+    if(warn.invalidWells)ignoredPieces.push(`${warn.invalidWells} invalid`);
+    if(warn.outOfRangeWells)ignoredPieces.push(`${warn.outOfRangeWells} out-of-range`);
+    if(warn.duplicateWells&&warn.duplicateWells.length)dupPieces.push(`${warn.duplicateWells.length} duplicate overwritten`);
+    if(ignoredPieces.length)oi.textContent+=` · ignored ${ignoredPieces.join(' + ')} wells`;
+    if(dupPieces.length)oi.textContent+=` · ${dupPieces.join(' + ')} wells`;
+  }
   buildPlateData(dir,_iRows,out,pt);renderMap();
+  if(dir==='l2L'&&_lastConvertWarnings){
+    const warn=_lastConvertWarnings;
+    const parts=[];
+    if(warn.invalidWells)parts.push(`${warn.invalidWells} invalid well(s)`);
+    if(warn.outOfRangeWells)parts.push(`${warn.outOfRangeWells} out-of-range well(s)`);
+    if(warn.duplicateWells&&warn.duplicateWells.length)parts.push(`${warn.duplicateWells.length} duplicate well(s) overwritten`);
+    const exampleTxt=warn.examples&&warn.examples.length?` Example: ${warn.examples.join(', ')}.`:'';
+    const dupPreview=(warn.duplicateWells&&warn.duplicateWells.length)
+      ? ` Duplicate wells: ${warn.duplicateWells.slice(0,12).join(', ')}${warn.duplicateWells.length>12?' ...':''}.`
+      : '';
+    toast(`Done with warning: ${parts.join(' + ')}.${exampleTxt}${dupPreview}`,'warn');
+    return;
+  }
   toast(`Done — ${out.length-1} data rows.`,'ok');
 }
 
@@ -1371,7 +1805,7 @@ function buildPlateData(dir,inputRows,outputRows,pt){
   const parsed=parseListRows(listRows);
   const h=parsed.header,data=parsed.data;
   const wi=parsed.wellIdx;if(wi===-1){_plateData=null;return;}
-  const pi=parsed.plateIdx;
+  const pi=getPlateNameColIdx(listRows);
   const valueIdxs=getValColIdx(listRows);
   const plateData=[];
   for(const vi of valueIdxs){
@@ -1512,6 +1946,8 @@ function clearInput(){
   setBadge('i','unknown');document.getElementById('iInf').textContent='';
   document.getElementById('iPlateBadge').className='badge unknown hidden';
   document.getElementById('vcWrap').classList.add('hidden');
+  document.getElementById('pcWrap').classList.add('hidden');
+  document.getElementById('pcSel').dataset.userSet='';
 }
 function useAsInput(){
   if(!_oRows||!_oRows.length){toast('No output to use as input.','err');return;}
