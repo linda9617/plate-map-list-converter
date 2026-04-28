@@ -8,10 +8,10 @@
 :root{--bg:#eaf3ff;--panel:#fff;--line:#dde5f0;--brand:#0b3a78;--brand-soft:#e7f4f7;--ink:#1a2333;--muted:#5f6b7b;--ok:#1f8b4d;--warn:#b87915;--err:#b3261e;--info:#3666c6;--shadow:0 8px 30px rgba(16,27,52,.08);--r:12px;--surface:var(--panel);--border:var(--line);--primary:var(--brand);--primary-lt:var(--brand-soft);--primary-dk:#082358;--text:var(--ink);--sh:var(--shadow)}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:"Segoe UI","SF Pro Text","Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;padding-bottom:34px}
-header{background:var(--brand);color:#fff;padding:22px 24px 14px;box-shadow:0 8px 24px rgba(13,56,63,.25)}
-header h1{font-size:28px;letter-spacing:.2px;margin:0}
-header p{font-size:13px;opacity:.9;margin:6px 0 0}
-.byline{margin-top:12px;text-align:right;font-size:.86rem;opacity:.92}
+header{background:linear-gradient(135deg,var(--brand) 0%,#1a5fa0 100%);color:#fff;padding:16px 24px 12px;box-shadow:0 3px 18px rgba(0,0,0,.18)}
+header h1{font-size:1.9rem;font-weight:700;letter-spacing:.2px;margin:0}
+header p{font-size:.8rem;opacity:.78;margin-top:3px}
+.author{font-size:.8rem;opacity:.78;margin-top:2px;text-align:right}
 .wrap{max-width:1480px;margin:0 auto;padding:14px 14px 60px}
 /* settings bar */
 .sbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:8px 14px;margin-bottom:12px;box-shadow:var(--sh)}
@@ -107,7 +107,7 @@ header p{font-size:13px;opacity:.9;margin:6px 0 0}
 <header>
   <h1>Plate Map ↔ List Converter v1.5</h1>
   <p>Bidirectional conversion between microplate grid map and well-list format — 96 / 384 / 1536-well</p>
-  <div class="byline">by ILYH</div>
+  <p class="author">By ILYH</p>
 </header>
 
 <div class="wrap">
