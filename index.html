@@ -105,7 +105,7 @@ header p{font-size:.8rem;opacity:.78;margin-top:3px}
 </head>
 <body>
 <header>
-  <h1>Plate Map ↔ List Converter v1.5</h1>
+  <h1>Plate Map ↔ List Converter v1.6</h1>
   <p>Bidirectional conversion between microplate grid map and well-list format — 96 / 384 / 1536-well</p>
   <p class="author">By ILYH</p>
 </header>
@@ -755,7 +755,8 @@ function parseListRows(rows){
     data=rows.slice(1);
   }else{
     header=[];
-    for(let i=0;i<nCols;i++)header.push(i===0?'Well':i===1?'Value':`Col ${i+1}`);
+    let plateIdx2=0;
+    for(let i=0;i<nCols;i++)header.push(i===0?'Well':`Plate-${++plateIdx2}`);
     data=rows;
   }
 
@@ -982,8 +983,8 @@ function handleColSelect(e){
 // PARSING
 // ══════════════════════════════════════════
 function autoSep(txt){const s=txt.slice(0,3000);const t=(s.match(/\t/g)||[]).length,c=(s.match(/,/g)||[]).length,sc=(s.match(/;/g)||[]).length;if(t>=c&&t>=sc)return '\t';if(sc>c)return ';';return ',';}
-function splitCSVLine(line){const r=[];let cur='',inQ=false;for(let i=0;i<line.length;i++){const ch=line[i];if(ch==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}else if(ch===','&&!inQ){r.push(cur.trim());cur='';}else cur+=ch;}r.push(cur.trim());return r;}
-function parseText(txt){const sepOpt=document.getElementById('sSep').value;const sep=sepOpt==='auto'?autoSep(txt):sepOpt;return txt.trim().split(/\r?\n/).map(l=>sep===','?splitCSVLine(l):l.split(sep).map(c=>c.trim()));}
+function splitCSVLine(line){const r=[];let cur='',inQ=false;for(let i=0;i<line.length;i++){const ch=line[i];if(ch==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}else if(ch===','&&!inQ){r.push(cur);cur='';}else cur+=ch;}r.push(cur);return r;}
+function parseText(txt){const sepOpt=document.getElementById('sSep').value;const sep=sepOpt==='auto'?autoSep(txt):sepOpt;return txt.split(/\r?\n/).map(l=>sep===','?splitCSVLine(l):l.split(sep));}
 
 // ══════════════════════════════════════════
 // FORMAT & PLATE DETECTION
@@ -1433,14 +1434,14 @@ function layoutToList(rows,pt){
     return out;
   }
 
-  function isHdr(row){if(!row||!row[0])return false;return row.slice(1).filter(c=>/^\d+$/.test((c||'').trim())).length>=3;}
+  function isHdr(row){if(!row)return false;const label=(row[0]||'').trim().toUpperCase();if(label&&ALL_ROWS.indexOf(label)!==-1)return false;const nums=row.slice(1).map(c=>parseInt((c||'').trim())).filter(n=>!isNaN(n)&&n>0);if(nums.length<2)return false;const sorted=[...nums].sort((a,b)=>a-b);return sorted[0]===1&&sorted[sorted.length-1]===sorted.length;}
   const blocks=[];
-  for(let i=0;i<rows.length;i++)if(isHdr(rows[i]))blocks.push({name:rows[i][0].trim(),hdrIdx:i});
+  for(let i=0;i<rows.length;i++)if(isHdr(rows[i]))blocks.push({name:(rows[i][0]||'').trim(),hdrIdx:i});
   if(!blocks.length)blocks.push({name:'Plate',hdrIdx:0});
   for(let b=0;b<blocks.length;b++)blocks[b].end=(b+1<blocks.length)?blocks[b+1].hdrIdx:rows.length;
   const hdrNames=blocks.map(b=>rows[b.hdrIdx]&&rows[b.hdrIdx][0]?(rows[b.hdrIdx][0]||'').trim():'');
-  const valueNames=blocks.map((_,idx)=>hdrNames[idx]||`Value-${idx+1}`);
   const multi=blocks.length>1;
+  const valueNames=blocks.map((_,idx)=>hdrNames[idx]||`Plate-${idx+1}`);
   if(multi){
     const out=[[wn,...valueNames]];
     const orderedWells=[];
@@ -1743,7 +1744,7 @@ function buildPlateDataFromLayout(rows,pt){
     return [{name:defaultValueName,grid}];
   }
 
-  function isHdr(row){if(!row||!row[0])return false;return row.slice(1).filter(c=>/^\d+$/.test((c||'').trim())).length>=3;}
+  function isHdr(row){if(!row)return false;const label=(row[0]||'').trim().toUpperCase();if(label&&ALL_ROWS.indexOf(label)!==-1)return false;const nums=row.slice(1).map(c=>parseInt((c||'').trim())).filter(n=>!isNaN(n)&&n>0);if(nums.length<2)return false;const sorted=[...nums].sort((a,b)=>a-b);return sorted[0]===1&&sorted[sorted.length-1]===sorted.length;}
   const blocks=[];
   for(let i=0;i<rows.length;i++)if(isHdr(rows[i]))blocks.push({hdrIdx:i});
   if(!blocks.length)blocks.push({hdrIdx:0});
