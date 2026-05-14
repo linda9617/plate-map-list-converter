@@ -1511,11 +1511,11 @@ function layoutToList(rows,pt){
 // ══════════════════════════════════════════
 // LIST → LAYOUT
 // ══════════════════════════════════════════
-function buildGrid(dataRows,wi,vi,rl,nCols,rlSet,title,fmt){
+function buildGrid(dataRows,wi,vi,rl,nCols,rlSet,title,fmt,fillVal=''){
   const grid={};
-  for(const row of dataRows){const parsed=parseWellCode(row[wi]||'');if(!parsed)continue;const l=parsed.row,c=parsed.col;if(!rlSet.has(l)||c<1||c>nCols)continue;const rawVal=(row[vi]||'').trim();grid[`${l}${c}`]=EMPTY_SET.has(rawVal.toLowerCase())?'':rawVal;}
+  for(const row of dataRows){const parsed=parseWellCode(row[wi]||'');if(!parsed)continue;const l=parsed.row,c=parsed.col;if(!rlSet.has(l)||c<1||c>nCols)continue;const rawVal=(row[vi]||'').trim();grid[`${l}${c}`]=EMPTY_SET.has(rawVal.toLowerCase())?fillVal:rawVal;}
   const out=[[title||'', ...Array.from({length:nCols},(_,i)=>formatColNumber(i+1,fmt||'unpadded'))]];
-  for(const r of rl){const row=[r];for(let c=1;c<=nCols;c++)row.push(grid[`${r}${c}`]||'');out.push(row);}
+  for(const r of rl){const row=[r];for(let c=1;c<=nCols;c++)row.push(grid[`${r}${c}`]??fillVal);out.push(row);}
   return out;
 }
 function listToLayout(rows,pt,vi){
@@ -1574,6 +1574,8 @@ function listToLayout(rows,pt,vi){
       }
     : null;
 
+  const _emptyOptRaw=document.getElementById('sEmpty').value;
+  const fillVal=(_emptyOptRaw===''||_emptyOptRaw==='skip')?'':_emptyOptRaw;
   function buildForValue(valIdx){
     const valueTitle=(h[valIdx]||getValueColumnName()).trim()||'Value';
     if(pidx!==-1){
@@ -1588,12 +1590,12 @@ function listToLayout(rows,pt,vi){
       for(const pn of order){
         if(all.length>0)all.push(Array(nCols+1).fill(''));
         all.push([valueTitle,...Array.from({length:nCols},(_,i)=>formatColNumber(i+1,fmt))]);
-        const g=buildGrid(groups.get(pn),wellIdx,valIdx,rl,nCols,rlSet,valueTitle,fmt);
+        const g=buildGrid(groups.get(pn),wellIdx,valIdx,rl,nCols,rlSet,valueTitle,fmt,fillVal);
         for(const r of g.slice(1))all.push(r);
       }
       return all;
     }
-    return buildGrid(data,wellIdx,valIdx,rl,nCols,rlSet,valueTitle,fmt);
+    return buildGrid(data,wellIdx,valIdx,rl,nCols,rlSet,valueTitle,fmt,fillVal);
   }
 
   if(valueIdxs.length===1)return buildForValue(valueIdxs[0]);
